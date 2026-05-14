@@ -87,7 +87,7 @@ if not st.session_state.logged_in:
                 st.error("Onjuiste e-mail of wachtwoord.")
     st.stop()
 
-# --- 5. HOOFDAPPLICATIE (NA LOGIN) ---
+# --- 5. HOOFDAPPLICATIE ---
 user = st.session_state.user_db[st.session_state.current_user]
 
 # Gezondheidsberekeningen
@@ -121,6 +121,17 @@ with tab1:
     st.title(f"Hoi {user['name']}! 👋")
     st.caption("Jouw overzicht van vandaag:")
 
+    # 1. DYNAMISCHE MELDING VOOR DE WEKELIJKSE GRAFIEK-TEST
+    vandaag = datetime.date.today()
+    dag_van_de_week = vandaag.weekday() # 0 = Maandag, 6 = Zondag
+    
+    st.markdown("### 🔔 Grafiek Update Melding")
+    if dag_van_de_week == 6: # Het is Zondag
+        st.error("🚨 **TESTDAG!** Het is zondag. Ga naar de tab 'Voortgang' om je wekelijkse herhalingen te testen en te kijken of je bent gegroeid!")
+    else:
+        dagen_tot_zondag = 6 - dag_van_de_week
+        st.info(f"📅 Nog **{dagen_tot_zondag} dagen** tot je wekelijkse calisthenics-test (elke zondag) om je spiergroei-grafiek bij te werken.")
+
     # Status berekeningen
     resterend_kcal = max(0, afval_kcal - st.session_state.kcal_gegeten)
     resterend_water = max(0.0, doel_water_liters - (st.session_state.water_ml / 1000))
@@ -142,18 +153,15 @@ with tab1:
     with col_m2: st.metric(label="Nog te drinken water", value=f"{resterend_water:.1f} L", delta=f"Doel: {doel_water_liters}L")
 
     st.markdown("### 📋 Checklist")
-    
-    # HIER IS DE KAAKLIJN CHECKLIST FOUTLOOS HERSTELD
     if st.session_state.kaaklijn_gedaan:
         st.success("✅ Kaaklijntraining voltooid!")
     else:
         st.info("❌ Je moet je kaaklijnoefeningen nog doen vandaag.")
         
-    # HIER IS DE WORKOUT CHECKLIST FOUTLOOS HERSTELD
     if st.session_state.oefening_gedaan:
         st.success("✅ Krachttraining geregistreerd!")
     else:
-        st.warning("⚠️ Voer je workout van vandaag noch in via tekst.")
+        st.warning("⚠️ Voer je workout van vandaag nog in via tekst.")
 
 # --- TAB 2: AI SCANNER ---
 with tab2:
@@ -181,14 +189,14 @@ with tab3:
     st.line_chart(pd.DataFrame({"Datum": [vandaag - datetime.timedelta(days=i) for i in range(4, -1, -1)], "Gewicht (kg)": [user['weight']+1.0, user['weight']+0.7, user['weight']+0.4, user['weight']+0.2, user['weight']]}).set_index("Datum"))
     
     st.subheader("📊 Wekelijkse Lichaamsgewicht Groei")
-    st.caption("Test 1x per week je maximale kracht met je eigen lichaamsgewicht.")
+    st.caption("Vul hier op zondag je nieuwe maximale herhalingen of seconden in.")
     
     df_groei = pd.DataFrame({
         "Weken": ["Week 1", "Week 2", "Week 3", "Week 4"], 
         "Borst: Push-ups": [20, 22, 25, 27], 
-        "Rug: Pull-ups": [6, 7, 7, 9], 
-        "Benen: Pistol Squats": [5, 6, 8, 10], 
-        "Core: Plank (Sec)": [60, 65, 75, 90]
+        "Rug: Pull-ups": [5, 6, 6, 8], 
+        "Benen: Pistol Squats": [8, 10, 11, 12], 
+        "Core: Plank (Sec)": [60, 65, 75, 80]
     }).set_index("Weken")
     st.line_chart(df_groei)
 
@@ -244,4 +252,3 @@ with tab5:
             if any(x in tekst for x in ["squat", "pistol"]): st.info("🍗 Getraind: Benen & Billen (90%)")
             if any(x in tekst for x in ["pullup", "optrekken"]): st.info("🦅 Getraind: Rug & Biceps (80%)")
             if any(x in tekst for x in ["plank", "buik"]): st.info("🧱 Getraind: Buikspieren / Core (85%)")
-
