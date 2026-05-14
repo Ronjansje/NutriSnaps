@@ -53,6 +53,20 @@ if "pullup_record" not in st.session_state: st.session_state.pullup_record = 0
 if "pistol_record" not in st.session_state: st.session_state.pistol_record = 0
 if "plank_record" not in st.session_state: st.session_state.plank_record = 0
 
+if "workout_log" not in st.session_state: st.session_state.workout_log = []
+
+# --- EXERCISE MAPPER VOOR SPIEREN & HEATMAP ---
+EXERCISE_MUSCLES = {
+    "Pushups (Regulier)": {"Borst": 1.0, "Triceps": 0.7, "Schouders": 0.4, "Core": 0.3},
+    "Diamond Pushups": {"Triceps": 1.0, "Borst": 0.6, "Schouders": 0.4, "Core": 0.3},
+    "Pullups": {"Rug": 1.0, "Biceps": 0.6, "Core": 0.2},
+    "Chin-ups": {"Biceps": 1.0, "Rug": 0.7, "Core": 0.2},
+    "Pistol Squats": {"Benen": 1.0, "Core": 0.4},
+    "Dips": {"Triceps": 1.0, "Borst": 0.7, "Schouders": 0.5},
+    "Plank": {"Core": 1.0, "Schouders": 0.2},
+    "Mewing Sessie (minuten)": {"Kaaklijn": 1.0}
+}
+
 # --- 4. INLOG / REGISTRATIE SCHERM ---
 if not st.session_state.logged_in:
     st.title("📸 NutriSnap AI")
@@ -176,35 +190,49 @@ with tab1:
         st.success("👑 Jouw vetpercentage is optimaal voor een messcherpe kaaklijn!")
 
     st.markdown("### 🏅 Jouw Mijlpalen & Rangen")
-    p_reps = st.session_state.pushup_record
-    p_badge = "🥉 Beginner" if p_reps <= 15 else "🥈 Novice" if p_reps <= 30 else "🥇 Elite"
+    
+    p_badge = "🥉 Beginner" if st.session_state.pushup_record <= 15 else "🥈 Novice" if st.session_state.pushup_record <= 30 else "🥇 Elite"
+    u_badge = "🥉 Beginner" if st.session_state.pullup_record <= 5 else "🥈 Novice" if st.session_state.pullup_record <= 12 else "🥇 Elite"
+    s_badge = "🥉 Beginner" if st.session_state.pistol_record <= 3 else "🥈 Novice" if st.session_state.pistol_record <= 10 else "🥇 Elite"
+    l_badge = "🥉 Beginner" if st.session_state.plank_record <= 60 else "🥈 Novice" if st.session_state.plank_record <= 180 else "🥇 Elite"
     
     st.markdown(f"""
     <div class="badge-grid">
-        <div class="badge-box">🥇 Pushup Rang<br><b>{p_badge}</b><br><small>{p_reps} herhalingen</small></div>
-        <div class="badge-box">💧 Hydratie Status<br><b>{"Perfect" if st.session_state.water_ml >= (doel_water_liters * 1000) else "Drink meer!"}</b></div>
+        <div class="badge-box">🤸‍♂️ Pushup Rang<br><b>{p_badge}</b><br><small>{st.session_state.pushup_record} herhalingen</small></div>
+        <div class="badge-box">💪 Pullup Rang<br><b>{u_badge}</b><br><small>{st.session_state.pullup_record} herhalingen</small></div>
+        <div class="badge-box">🦵 Pistol Squat<br><b>{s_badge}</b><br><small>{st.session_state.pistol_record} herhalingen</small></div>
+        <div class="badge-box">⏱️ Plank Rang<br><b>{l_badge}</b><br><small>{st.session_state.plank_record} sec</small></div>
     </div>
     """, unsafe_allow_html=True)
 
 # --- TAB 2: AI SCANNER ---
 with tab2:
     st.title("📸 AI Maaltijd Scanner")
-    st.caption("Maak een foto of upload een afbeelding van je maaltijd voor directe macro-analyse.")
+    st.caption("Maak direct een foto met je camera of upload een afbeelding voor macro-analyse.")
     
-    upload_file = st.file_uploader("Kies een afbeelding...", type=["jpg", "jpeg", "png"])
-    if upload_file is not None:
-        st.image(upload_file, caption="Geüploade maaltijd", use_container_width=True)
-        with st.spinner("AI analyseert de maaltijd..."):
+    scan_method = st.radio("Kies invoermethode:", ["📷 Camera gebruiken", "📁 Bestand uploaden"], horizontal=True)
+    picture = None
+    
+    if scan_method == "📷 Camera gebruiken":
+        picture = st.camera_input("Maak een foto van je maaltijd")
+    else:
+        picture = st.file_uploader("Kies een afbeelding...", type=["jpg", "jpeg", "png"])
+        
+    if picture is not None:
+        if scan_method == "📁 Bestand uploaden":
+            st.image(picture, caption="Geüploade maaltijd", use_container_width=True)
+            
+        with st.spinner("AI scant maaltijd en berekent macro's..."):
             time.sleep(2)
         st.success("Analyse voltooid!")
         
-        sim_kcal = 450
-        sim_protein = 35
+        sim_kcal = 520
+        sim_protein = 38
         
         st.metric("Gescande Calorieën", f"{sim_kcal} kcal")
         st.metric("Gescande Eiwitten", f"{sim_protein} g")
         
-        if st.button("Voeg toe aan logboek"):
+        if st.button("Voeg toe aan logboek", key="add_scan_btn"):
             st.session_state.kcal_gegeten += sim_kcal
             st.session_state.eiwit_gegeten += sim_protein
             st.success("Toegevoegd aan je dagelijkse totalen!")
@@ -218,14 +246,19 @@ with tab3:
     with col2:
         st.metric("Doel Gewicht", f"{user['target_weight']} kg")
         
-    st.markdown("### Wekelijkse Calisthenics Testgegevens")
+    st.markdown("### Wekelijkse Calisthenics Testgegevens (Zondag PR's)")
     new_pushup = st.number_input("Max Pushups", min_value=0, value=st.session_state.pushup_record)
     new_pullup = st.number_input("Max Pullups", min_value=0, value=st.session_state.pullup_record)
+    new_pistol = st.number_input("Max Pistol Squats", min_value=0, value=st.session_state.pistol_record)
+    new_plank = st.number_input("Max Plank Tijd (seconden)", min_value=0, value=st.session_state.plank_record)
     
     if st.button("Records Bijwerken"):
         st.session_state.pushup_record = new_pushup
         st.session_state.pullup_record = new_pullup
+        st.session_state.pistol_record = new_pistol
+        st.session_state.plank_record = new_plank
         st.success("Records succesvol opgeslagen!")
+        st.rerun()
 
 # --- TAB 4: WATER & ETEN ---
 with tab4:
@@ -257,15 +290,154 @@ with tab4:
     st.write(f"🔥 Calorieën: {st.session_state.kcal_gegeten} / {afval_kcal} kcal")
     st.write(f"🥩 Eiwitten: {st.session_state.eiwit_gegeten} / {doel_eiwit} g")
 
-# --- TAB 5: OEFENINGEN ---
+# --- TAB 5: WORKOUT & DUBBELE SPIEREN-HEATMAP ---
 with tab5:
     st.title("🗿 Oefeningen & Kaaklijntraining")
     
+    st.markdown("### 🧬 Dagelijkse Routine Checks")
     st.checkbox("Kaaklijntraining voltooid (Mewing / Kauwgom)", value=st.session_state.kaaklijn_gedaan, key="kaaklijn_chk")
     st.checkbox("Dagelijkse workout routine voltooid", value=st.session_state.oefening_gedaan, key="workout_chk")
     
     st.session_state.kaaklijn_gedaan = st.session_state.kaaklijn_chk
     st.session_state.oefening_gedaan = st.session_state.workout_chk
+    
+    # Bereken totale spierbelasting van vandaag voor de 2D Heatmaps
+    muscle_scores = {"Kaaklijn": 0, "Borst": 0, "Triceps": 0, "Schouders": 0, "Rug": 0, "Biceps": 0, "Benen": 0, "Core": 0}
+    for item in st.session_state.workout_log:
+        oefen_naam = item["Oefening"]
+        if oefen_naam in EXERCISE_MUSCLES:
+            total_vol = item["Sets"] * item["Reps/Duur"]
+            for m_group, factor in EXERCISE_MUSCLES[oefen_naam].items():
+                muscle_scores[m_group] += total_vol * factor
+
+    # --- GEAUTOMATISEERDE DUBBELE HEATMAP (VOORKANT EN ACHTERKANT) ---
+    st.markdown("### 📊 Live 2D Spieractivatie Kaart")
+    st.caption("Links staat de voorkant, rechts de achterkant. Neon-roze is het hoogst belast.")
+    
+    js_muscle_data = json.dumps(muscle_scores)
+    
+    heatmap_html = f"""
+    <div style="text-align: center; background-color: #1F2937; padding: 15px; border-radius: 12px; border: 1px solid #374151;">
+        <canvas id="muscleCanvas" width="460" height="340" style="background-color: #111827; border-radius: 8px;"></canvas>
+    </div>
+    <script>
+        const scores = {js_muscle_data};
+        const canvas = document.getElementById('muscleCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        let maxScore = 0;
+        for (let m in scores) {{ if(scores[m] > maxScore) maxScore = scores[m]; }}
+        
+        function getColor(muscleName) {{
+            let score = scores[muscleName] || 0;
+            if (score === 0) return '#4B5563'; 
+            if (maxScore === 0) return '#FF1493';
+            let ratio = score / maxScore;
+            return `rgb(${{Math.floor(200 + 55 * ratio)}}, ${{Math.floor(20 + 20 * (1-ratio))}}, ${{Math.floor(100 + 155 * ratio)}})`;
+        }}
+
+        ctx.clearRect(0,0,460,340);
+        ctx.lineWidth = 2.5;
+        ctx.strokeStyle = '#FFFFFF';
+        
+        // --- 1. FIGUUR LINKS: VOORKANT ---
+        let offsetF = 30;
+        
+        // Hoofd & Kaaklijn
+        ctx.fillStyle = getColor('Kaaklijn');
+        ctx.beginPath(); ctx.arc(80 + offsetF, 45, 18, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+        
+        // Borst
+        ctx.fillStyle = getColor('Borst');
+        ctx.fillRect(52 + offsetF, 80, 56, 35); ctx.strokeRect(52 + offsetF, 80, 56, 35);
+        
+        // Core / Abs
+        ctx.fillStyle = getColor('Core');
+        ctx.fillRect(57 + offsetF, 120, 46, 50); ctx.strokeRect(57 + offsetF, 120, 46, 50);
+        
+        // Schouders Voorkant
+        ctx.fillStyle = getColor('Schouders');
+        ctx.beginPath(); ctx.arc(38 + offsetF, 88, 11, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+        ctx.beginPath(); ctx.arc(122 + offsetF, 88, 11, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+        
+        // Armen / Biceps (Voorkant)
+        ctx.fillStyle = getColor('Biceps');
+        ctx.fillRect(20 + offsetF, 103, 15, 50); ctx.strokeRect(20 + offsetF, 103, 15, 50);
+        ctx.fillRect(125 + offsetF, 103, 15, 50); ctx.strokeRect(125 + offsetF, 103, 15, 50);
+        
+        // Benen Voorkant
+        ctx.fillStyle = getColor('Benen');
+        ctx.fillRect(55 + offsetF, 175, 20, 80); ctx.strokeRect(55 + offsetF, 175, 20, 80);
+        ctx.fillRect(85 + offsetF, 175, 20, 80); ctx.strokeRect(85 + offsetF, 175, 20, 80);
+        
+        // --- 2. FIGUUR RECHTS: ACHTERKANT ---
+        let offsetB = 250;
+        
+        // Hoofd Achterkant
+        ctx.fillStyle = '#4B5563';
+        ctx.beginPath(); ctx.arc(80 + offsetB, 45, 18, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+        
+        // Rug (Lats / Traps)
+        ctx.fillStyle = getColor('Rug');
+        ctx.fillRect(52 + offsetB, 80, 56, 60); ctx.strokeRect(52 + offsetB, 80, 56, 60);
+        
+        // Glutes / Onderrug
+        ctx.fillStyle = getColor('Benen');
+        ctx.fillRect(55 + offsetB, 145, 50, 25); ctx.strokeRect(55 + offsetB, 145, 50, 25);
+        
+        // Schouders Achterkant
+        ctx.fillStyle = getColor('Schouders');
+        ctx.beginPath(); ctx.arc(38 + offsetB, 88, 11, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+        ctx.beginPath(); ctx.arc(122 + offsetB, 88, 11, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+        
+        // Armen / Triceps (Achterkant)
+        ctx.fillStyle = getColor('Triceps');
+        ctx.fillRect(20 + offsetB, 103, 15, 50); ctx.strokeRect(20 + offsetB, 103, 15, 50);
+        ctx.fillRect(125 + offsetB, 103, 15, 50); ctx.strokeRect(125 + offsetB, 103, 15, 50);
+        
+        // Benen Achterkant (Hamstrings / Kuiten)
+        ctx.fillStyle = getColor('Benen');
+        ctx.fillRect(55 + offsetB, 175, 20, 80); ctx.strokeRect(55 + offsetB, 175, 20, 80);
+        ctx.fillRect(85 + offsetB, 175, 20, 80); ctx.strokeRect(85 + offsetB, 175, 20, 80);
+        
+        // Tekst labels
+        ctx.fillStyle = '#9CA3AF'; ctx.font = 'bold 12px sans-serif';
+        ctx.fillText("VOORKANT", 75, 290);
+        ctx.fillText("ACHTERKANT", 290, 290);
+    </script>
+    """
+    html(heatmap_html, height=360)
+
+    st.markdown("### 📝 Specifieke Oefening Loggen")
+    with st.form("exercise_form"):
+        ex_name = st.selectbox("Kies oefening:", list(EXERCISE_MUSCLES.keys()))
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            ex_sets = st.number_input("Sets", min_value=1, value=3)
+        with col2:
+            ex_reps = st.number_input("Reps / Duur", min_value=1, value=10)
+        with col3:
+            ex_weight = st.number_input("Extra Gewicht (kg)", min_value=0.0, value=0.0)
+            
+        submit_ex = st.form_submit_button("Oefening Opslaan")
+        if submit_ex:
+            st.session_state.workout_log.append({
+                "Tijdstip": datetime.datetime.now().strftime("%H:%M"),
+                "Oefening": ex_name,
+                "Sets": ex_sets,
+                "Reps/Duur": ex_reps,
+                "Gewicht (kg)": ex_weight
+            })
+            st.success(f"{ex_name} toegevoegd! De spierkaarten hierboven zijn direct bijgewerkt.")
+            time.sleep(0.5)
+            st.rerun()
+
+    if st.session_state.workout_log:
+        st.markdown("##### 📋 Oefeningen van Vandaag:")
+        st.dataframe(pd.DataFrame(st.session_state.workout_log), use_container_width=True)
+        if st.button("Logboek Leegmaken"):
+            st.session_state.workout_log = []
+            st.rerun()
 
 # --- TAB 6: PROFIEL AANPASSEN ---
 with tab6:
@@ -290,24 +462,4 @@ with tab6:
         new_waist = st.number_input("Buikomtrek (cm)", min_value=50.0, max_value=150.0, value=float(user["waist"]))
         
         submit_profile = st.form_submit_button("Wijzigingen Opslaan")
-        
-        if submit_profile:
-            if new_name:
-                age_calc = calculate_age(new_birthday)
-                st.session_state.user_db[st.session_state.current_user].update({
-                    "name": new_name,
-                    "birthday": new_birthday.strftime("%Y-%m-%d"),
-                    "age": age_calc,
-                    "height": new_height,
-                    "weight": new_weight,
-                    "target_weight": new_target_weight,
-                    "days_train": new_days,
-                    "duration_train": new_duration,
-                    "neck": new_neck,
-                    "waist": new_waist
-                })
-                st.success("Profiel succesvol bijgewerkt!")
-                time.sleep(1)
-                st.rerun()
-            else:
-                st.error("Naam mag niet leeg zijn.")
+
