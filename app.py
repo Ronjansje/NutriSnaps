@@ -58,41 +58,37 @@ def voorspel_spieren(oefening_naam):
     if not gevonden_spieren: return "Algemene spiergroepen"
     return ", ".join(list(set(gevonden_spieren)))
 
-def get_pushup_badge(reps):
-    if reps < 15: return "🥚 Groentje"
-    elif reps < 30: return "🪵 Houthakker"
-    elif reps < 45: return "⚔️ Krijger"
-    elif reps < 60: return "🛡️ Gladiator"
-    elif reps < 80: return "🦁 Sfinx"
-    elif reps < 100: return "🌋 Titan"
-    return "👑 Onsterfelijke"
-
-def get_pullup_badge(reps):
-    if reps < 3: return "🐣 Kuiken"
-    elif reps < 6: return "🐒 Slingeraap"
-    elif reps < 10: return "🦅 Havik"
-    elif reps < 15: return "🐆 Panter"
-    elif reps < 20: return "🦍 Zilverrug"
-    elif reps < 25: return "🐉 Draak"
-    return "⚡ Dondergod"
-
-def get_pistol_badge(reps):
-    if reps < 2: return "🛴 Step-Koning"
-    elif reps < 5: return "🦌 Springbok"
-    elif reps < 8: return "🦘 Kangoeroe"
-    elif reps < 12: return "🦾 Hydraulische Pers"
-    elif reps < 16: return "🦏 Neushoorn"
-    elif reps < 20: return "🧱 Sloopkogel"
-    return "🏛️ Atlas"
-
-def get_plank_badge(seconds):
-    if seconds < 45: return "⏳ Zandloper"
-    elif seconds < 90: return "🪵 Eiken Plank"
-    elif seconds < 150: return "🧱 Baksteen"
-    elif seconds < 210: return "💎 Graniet"
-    elif seconds < 300: return "🏔️ Rotswand"
-    elif seconds < 420: return "🌋 Moeder aarde"
-    return "🗿 Onwrikbaar Standbeeld"
+def bereken_badge(oefening, waarde):
+    if oefening == "pushups":
+        if waarde <= 15: return "🥚 Beginner"
+        elif waarde <= 30: return "🔥 Gevorderd"
+        elif waarde <= 45: return "⚔️ Krijger"
+        elif waarde <= 60: return "👑 Elite"
+        elif waarde <= 75: return "💎 Meester"
+        elif waarde <= 90: return "🌋 Goddelijk"
+        return "🧬 Onsterfelijk"
+    elif oefening == "pullups":
+        if waarde <= 5: return "🌱 Klimmer"
+        elif waarde <= 10: return "🐒 Atleet"
+        elif waarde <= 15: return "🦅 Sloper"
+        elif waarde <= 20: return "🦾 Beest"
+        elif waarde <= 25: return "⚡ Bar-Koning"
+        return "🌌 Zwaartekracht-Baas"
+    elif oefening == "pistols":
+        if waarde <= 3: return "🦵 Wankelaar"
+        elif waarde <= 6: return "🛹 Skater"
+        elif waarde <= 10: return "🏹 Ninja"
+        elif waarde <= 15: return "🦾 Titanium Knie"
+        elif waarde <= 20: return "🚀 Cyborg"
+        return "🐉 Sloopkogel"
+    elif oefening == "plank":
+        if waarde <= 45: return "⏱️ Starter"
+        elif waarde <= 90: return "🧱 Baksteen"
+        elif waarde <= 150: return "🛡️ Schild"
+        elif waarde <= 240: return "⛰️ Rots"
+        elif waarde <= 360: return "💎 Diamant Core"
+        return "🪐 Tijdreiziger"
+    return "Badge"
 
 # --- 2. INITIALISATIE STATE ---
 vandaag_str = datetime.date.today().strftime("%Y-%m-%d")
@@ -293,15 +289,20 @@ with tab1:
     else:
         st.markdown(f"""<div class="status-box" style="border-left-color: #FF1493;"><b style="color: #FF1493;">❌ Routine incompleet ({vinkjes_teller}/{totaal_routines})</b></div>""", unsafe_allow_html=True)
 
-    st.markdown(f"""<div class="fat-box"><h4 style="margin:0; color:#00FFFF;">🧬 Vetpercentage: {vetpercentage:.1f}%</h4></div>""", unsafe_allow_html=True)
+    st.markdown("### 🏅 Actuele Unieke Rangen")
+    p_badge = bereken_badge("pushups", st.session_state.pushup_record)
+    pu_badge = bereken_badge("pullups", st.session_state.pullup_record)
+    pi_badge = bereken_badge("pistols", st.session_state.pistol_record)
+    pl_badge = bereken_badge("plank", st.session_state.plank_record)
 
-    st.markdown("### 🏅 Actuele Rangen & PR's")
     st.markdown(f"""<div class="badge-grid">
-        <div class="badge-box"><b>Opdrukken</b><br><small>{get_pushup_badge(st.session_state.pushup_record)} ({st.session_state.pushup_record} reps)</small></div>
-        <div class="badge-box"><b>Optrekken</b><br><small>{get_pullup_badge(st.session_state.pullup_record)} ({st.session_state.pullup_record} reps)</small></div>
-        <div class="badge-box"><b>Pistol Squats</b><br><small>{get_pistol_badge(st.session_state.pistol_record)} ({st.session_state.pistol_record} reps)</small></div>
-        <div class="badge-box"><b>Plank</b><br><small>{get_plank_badge(st.session_state.plank_record)} ({st.session_state.plank_record}s)</small></div>
+        <div class="badge-box"><b>Pushups</b><br>{p_badge}<br><small>({st.session_state.pushup_record} reps)</small></div>
+        <div class="badge-box"><b>Pullups</b><br>{pu_badge}<br><small>({st.session_state.pullup_record} reps)</small></div>
+        <div class="badge-box"><b>Pistols</b><br>{pi_badge}<br><small>({st.session_state.pistol_record} reps)</small></div>
+        <div class="badge-box"><b>Plank</b><br>{pl_badge}<br><small>({st.session_state.plank_record}s)</small></div>
     </div>""", unsafe_allow_html=True)
+
+    st.markdown(f"""<div class="fat-box"><h4 style="margin:0; color:#00FFFF;">🧬 Vetpercentage: {vetpercentage:.1f}%</h4></div>""", unsafe_allow_html=True)
 
 # --- TAB 2: AI SCANNER ---
 with tab2:
@@ -317,8 +318,7 @@ with tab3:
     st.line_chart(data=pd.DataFrame(st.session_state.weight_history), x="Datum", y="Gewicht (kg)", color="#00FFFF")
     
     st.markdown("#### 📊 Calisthenics PR Tijdlijn")
-    df_history = pd.DataFrame(st.session_state.pr_history)
-    st.line_chart(data=df_history, x="Datum", y=["Pushups", "Pullups", "Pistol Squats", "Plank (sec)"])
+    st.line_chart(data=pd.DataFrame(st.session_state.pr_history), x="Datum", y=["Pushups", "Pullups", "Pistol Squats", "Plank (sec)"])
     
     with st.form("progress_form"):
         d_input = st.date_input("Meting Datum", datetime.date.today()).strftime("%Y-%m-%d")
@@ -326,8 +326,8 @@ with tab3:
         pu = st.number_input("Max Pushups", value=st.session_state.pushup_record)
         pl = st.number_input("Max Pullups", value=st.session_state.pullup_record)
         pi = st.number_input("Max Pistol Squats", value=st.session_state.pistol_record)
-        pk = st.number_input("Max Plankduur (sec)", value=st.session_state.plank_record)
-        if st.form_submit_button("Metingen Opslaan"):
+        pk = st.number_input("Max Plank (sec)", value=st.session_state.plank_record)
+        if st.form_submit_button("🔥 Metingen Opslaan"):
             st.session_state.pushup_record = pu
             st.session_state.pullup_record = pl
             st.session_state.pistol_record = pi
@@ -383,14 +383,4 @@ with tab5:
             save_to_browser(); time.sleep(1); st.rerun()
 
     if st.session_state.oefening_log:
-        st.dataframe(pd.DataFrame(st.session_state.oefening_log), use_container_width=True, hide_index=True)
-
-# --- TAB 6: ACCOUNT ---
-with tab6:
-    st.title("⚙️ Personaliseer Je Profiel")
-    with st.form("account_form"):
-        new_name = st.text_input("Voornaam", value=user["name"])
-        try:
-            current_bdate = datetime.datetime.strptime(user["birth_date"], "%Y-%m-%d").date()
-        except:
-            current_bdate = datetime.date
+        st.dataframe(pd.DataFrame(st.session_state.oefening
