@@ -45,12 +45,19 @@ if "oefening_gedaan" not in st.session_state: st.session_state.oefening_gedaan =
 
 if "oefening_log" not in st.session_state: st.session_state.oefening_log = []
 
-if "pushup_record" not in st.session_state: st.session_state.pushup_record = 0
-if "pullup_record" not in st.session_state: st.session_state.pullup_record = 0
-if "pistol_record" not in st.session_state: st.session_state.pistol_record = 0
-if "plank_record" not in st.session_state: st.session_state.plank_record = 0
+# Records (huidige stand voor hoofdscherm)
+if "pushup_record" not in st.session_state: st.session_state.pushup_record = 12
+if "pullup_record" not in st.session_state: st.session_state.pullup_record = 4
+if "pistol_record" not in st.session_state: st.session_state.pistol_record = 2
+if "plank_record" not in st.session_state: st.session_state.plank_record = 45
 
-# Oefeningen database met primaire spiergroepen gescheiden door komma's voor de diagrammen
+# NIEUW: Historie logboek voor progressie diagrammen (startdata ingevuld als voorbeeld)
+if "pr_history" not in st.session_state:
+    st.session_state.pr_history = [
+        {"Datum": "2026-04-26", "Pushups": 10, "Pullups": 3, "Pistol Squats": 1, "Plank (sec)": 30},
+        {"Datum": "2026-05-03", "Pushups": 12, "Pullups": 4, "Pistol Squats": 2, "Plank (sec)": 45}
+    ]
+
 OEFENINGEN_INFO = {
     "Pushups": "Borst, Triceps, Schouders, Core",
     "Diamond Pushups": "Triceps, Borst, Schouders",
@@ -156,7 +163,7 @@ with tab1:
     st.title(f"Hoi {user['name']}! 👋")
     vandaag = datetime.date.today()
     if vandaag.weekday() == 6: 
-        st.error("🚨 **TESTDAG!** Het is zondag. Ga snel naar 'Voortgang'!")
+        st.error("🚨 **TESTDAG!** Het is zondag. Ga snel naar 'Voortgang' om je PR's te verbreken!")
     else: 
         st.info(f"📅 Nog **{6 - vandaag.weekday()} dagen** tot de wekelijkse calisthenics-testdag (zondag).")
 
@@ -173,9 +180,7 @@ with tab1:
     else: 
         st.success("👑 Jouw vetpercentage is optimaal voor een messcherpe kaaklijn!")
 
-    st.markdown("### 🏅 Jouw Mijlpalen & Rangen")
-    
-    # 4 Rangen berekeningen hersteld
+    st.markdown("### 🏅 Actuele Rangen & PR's")
     p_reps = st.session_state.pushup_record
     p_badge = "🥉 Beginner" if p_reps <= 15 else "🥈 Novice" if p_reps <= 30 else "🥇 Advanced"
     
@@ -217,50 +222,63 @@ with tab2:
                     st.session_state.eiwit_gegeten += mock_protein
                     st.rerun()
 
-# --- TAB 3: VOORTGANG & DIAGRAMMEN ---
+# --- TAB 3: VOORTGANG (VERBETERING OVER TIJDLIJN) ---
 with tab3:
-    st.title("📈 Voortgang & Diagrammen")
+    st.title("📈 Jouw Progressie Tijdlijn")
+    st.caption("Bekijk hier hoe je elke week sterker wordt na je zondagse test.")
     
-    # 1. Diagrammen hersteld: Huidige Calisthenics Records
-    st.markdown("### 📊 Jouw Kracht-PR's")
-    pr_data = pd.DataFrame({
-        "Oefening": ["Pushups (reps)", "Pullups (reps)", "Pistol Squats (reps)", "Plank (sec)"],
-        "Aantal": [st.session_state.pushup_record, st.session_state.pullup_record, st.session_state.pistol_record, st.session_state.plank_record]
-    })
-    st.bar_chart(data=pr_data, x="Oefening", y="Aantal", color="#FF1493")
-
-    # 2. Extra Diagram: Getrainde spiergroepen volumebalans
-    st.markdown("### 🧬 Spiergroep Distributie (Volume)")
-    if st.session_state.oefening_log:
-        spier_counts = {}
-        for log in st.session_state.oefening_log:
-            try:
-                # Bereken volume (sets * reps)
-                sets, reps = map(int, log["Volume"].split('x'))
-                volume = sets * reps
-            except:
-                volume = 10
-            
-            # Verdeel volume over de spiergroepen
-            for spier in log["Getrainde Spieren"].split(', '):
-                spier_counts[spier] = spier_counts.get(spier, 0) + volume
-                
-        spier_df = pd.DataFrame(list(spier_counts.items()), columns=["Spiergroep", "Totaal Volume"])
-        st.bar_chart(data=spier_df, x="Spiergroep", y="Totaal Volume", color="#00FFFF")
-    else:
-        st.caption("Log oefeningen in het laatste tabblad om je spierbalans-diagram te activeren.")
-
+    # Maak een DataFrame van de opgeslagen PR-historie
+    df_history = pd.DataFrame(st.session_state.pr_history)
+    
+    # Toon lijndiagrammen van de voortgang
+    st.markdown("#### 💎 Repetitie Oefeningen Groei")
+    st.line_chart(data=df_history, x="Datum", y=["Pushups", "Pullups", "Pistol Squats"], color=["#FF1493", "#00FFFF", "#FFD700"])
+    
+    st.markdown("#### ⏱️ Statische Kracht Groei")
+    st.line_chart(data=df_history, x="Datum", y="Plank (sec)", color="#00FF00")
+    
     st.markdown("---")
-    st.markdown("### ⚙️ Records handmatig bijwerken")
+    st.markdown("### 🚨 Zondagse PR Test Registreren")
+    st.caption("Voer hier je nieuwe maximale scores in om je grafiek omhoog te stuwen.")
+    
     with st.form("records_form"):
+        test_date = st.date_input("Datum van test", datetime.date.today())
         new_pushup = st.number_input("Max Pushups", min_value=0, value=st.session_state.pushup_record)
         new_pullup = st.number_input("Max Pullups", min_value=0, value=st.session_state.pullup_record)
         new_pistol = st.number_input("Max Pistol Squats", min_value=0, value=st.session_state.pistol_record)
         new_plank = st.number_input("Max Plankduur (sec)", min_value=0, value=st.session_state.plank_record)
-        if st.form_submit_button("PR's Opslaan"):
-            st.session_state.pushup_record, st.session_state.pullup_record = new_pushup, new_pullup
-            st.session_state.pistol_record, st.session_state.plank_record = new_pistol, new_plank
+        
+        if st.form_submit_button("🔥 Nieuwe PR's Opslaan & Loggen"):
+            str_date = test_date.strftime("%Y-%m-%d")
+            
+            # Update huidige records voor de badges
+            st.session_state.pushup_record = new_pushup
+            st.session_state.pullup_record = new_pullup
+            st.session_state.pistol_record = new_pistol
+            st.session_state.plank_record = new_plank
+            
+            # Voeg toe aan geschiedenis-lijst voor het diagram
+            nieuwe_meting = {
+                "Datum": str_date,
+                "Pushups": new_pushup,
+                "Pullups": new_pullup,
+                "Pistol Squats": new_pistol,
+                "Plank (sec)": new_plank
+            }
+            
+            # Als de datum al bestaat, overschrijf deze dan, anders toevoegen
+            st.session_state.pr_history = [h for h in st.session_state.pr_history if h["Datum"] != str_date]
+            st.session_state.pr_history.append(nieuwe_meting)
+            # Sorteer op datum zodat de lijn chronologisch loopt
+            st.session_state.pr_history = sorted(st.session_state.pr_history, key=lambda x: x["Datum"])
+            
+            st.success("Geweldig gewerkt! Je tijdlijn is bijgewerkt.")
+            time.sleep(1)
             st.rerun()
+
+    if st.button("🔄 Reset Tijdlijn"):
+        st.session_state.pr_history = [{"Datum": datetime.date.today().strftime("%Y-%m-%d"), "Pushups": new_pushup, "Pullups": new_pullup, "Pistol Squats": new_pistol, "Plank (sec)": new_plank}]
+        st.rerun()
 
 # --- TAB 4: WATER & ETEN ---
 with tab4:
@@ -296,11 +314,11 @@ with tab5:
     st.checkbox("Nek- en rughouding stretches gedaan", key="oefening_gedaan")
     
     st.markdown("---")
-    st.markdown("### 🏋️‍♂️ Oefening Registreren")
+    st.markdown("### 🏋️‍♂️ Dagelijkse Oefening Registreren")
     
     gekozen_oefening = st.selectbox("Welke oefening heb je gedaan?", list(OEFENINGEN_INFO.keys()))
     sets = st.number_input("Aantal sets", min_value=1, max_value=10, value=3)
-    reps = st.number_input("Herhalingen per set (of seconden bij plank)", min_value=1, max_value=300, value=10)
+    reps = st.number_input("Herhalingen per set (of seconden)", min_value=1, max_value=300, value=10)
     
     if st.button("💪 Log Oefening"):
         spieren = OEFENINGEN_INFO[gekozen_oefening]
