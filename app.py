@@ -49,6 +49,10 @@ if "pullup_record" not in st.session_state: st.session_state.pullup_record = 0
 if "pistol_record" not in st.session_state: st.session_state.pistol_record = 0
 if "plank_record" not in st.session_state: st.session_state.plank_record = 0
 
+# Initialiseer wekelijkse gewichtshistorie
+if "wekelijks_gewicht" not in st.session_state:
+    st.session_state.wekelijks_gewicht = []
+
 # --- 4. INLOG / REGISTRATIE SCHERM ---
 if not st.session_state.logged_in:
     st.title("📸 NutriSnap AI")
@@ -80,6 +84,8 @@ if not st.session_state.logged_in:
                     "neck": neck_in, "waist": waist_in
                 }
                 st.session_state.user_db[email_input] = account_data
+                # Voeg eerste wekelijkse gewicht toe op basis van profiel
+                st.session_state.wekelijks_gewicht = [{"Week": f"Week {datetime.date.today().isocalendar()[1]}", "Gewicht (kg)": weight}]
                 st.success("Account succesvol aangemaakt! Je kunt nu direct inloggen.")
             else:
                 st.error("Vul alle velden correct in.")
@@ -98,6 +104,8 @@ if not st.session_state.logged_in:
                         "password": hashed_pwd, "name": "Gebruiker", "age": 20, "height": 180, "weight": 80,
                         "target_weight": 75, "days_train": 3, "duration_train": 60, "neck": 38, "waist": 85
                     }
+                    if not st.session_state.wekelijks_gewicht:
+                        st.session_state.wekelijks_gewicht = [{"Week": f"Week {datetime.date.today().isocalendar()[1]}", "Gewicht (kg)": 80.0}]
                     st.session_state.logged_in = True
                     st.session_state.current_user = email_input
                     st.rerun()
@@ -147,7 +155,7 @@ with tab1:
     st.title(f"Hoi {user['name']}! 👋")
     
     vandaag = datetime.date.today()
-    if vandaag.weekday() == 6: st.error("🚨 **TESTDAG!** Het is zondag. Ga snel naar 'Voortgang'!")
+    if vandaag.weekday() == 6: st.error("🚨 **TESTDAG!** Het is zondag. Ga snel naar 'Voortgang' of 'Oefeningen'!")
     else: st.info(f"📅 Nog **{6 - vandaag.weekday()} dagen** tot de wekelijkse calisthenics-testdag (zondag).")
 
     st.markdown("### 📏 Jouw Lichaamscompositie")
@@ -163,122 +171,131 @@ with tab1:
 
     st.markdown("### 🏅 Jouw Mijlpalen & Rangen")
     p_reps = st.session_state.pushup_record
-    p_badge = "🥉 Beginner" if p_reps <= 15 else "🥈 Novice" if p_reps <= 30 else "🥇 Borst van Staal" if p_reps <= 50 else "💎 Push Master" if p_reps <= 75 else "🏆 Elite Atleet" if p_reps <= 99 else "👑 PUSH GOD"
+    p_badge = "🥉 Beginner" if p_reps <= 15 else "🥈 Novice" if p_reps <= 30 else "🥇 Elite"
+    
     u_reps = st.session_state.pullup_record
-    u_badge = "🥉 Hanger" if u_reps <= 5 else "🥈 Klimmer" if u_reps <= 12 else "🥇 Klauw van Brons" if u_reps <= 20 else "💎 Pull Master" if u_reps <= 29 else "👑 ADELAAR"
-    s_reps = st.session_state.pistol_record
-    s_badge = "🥉 Wankelaar" if s_reps <= 5 else "🥈 Squat Gevorderd" if s_reps <= 15 else "🥇 Benen van Beton" if s_reps <= 25 else "💎 Leg Legend" if s_reps <= 39 else "👑 TITANIUM"
-    pl_sec = st.session_state.plank_record
-    pl_badge = "🥉 Plankje" if pl_sec <= 45 else "🥈 Stabiele Basis" if pl_sec <= 90 else "🥇 IJzeren Kern" if pl_sec <= 179 else "💎 Core King" if pl_sec <= 299 else "👑 MUUR"
+    u_badge = "🥉 Beginner" if u_reps <= 5 else "🥈 Novice" if u_reps <= 12 else "🥇 Elite"
 
     st.markdown(f"""
     <div class="badge-grid">
-        <div class="badge-box">🌟 <b>Borst (Push)</b><br><span style='color:#FF1493;'>{p_badge}</span><br><small>{p_reps} reps</small></div>
-        <div class="badge-box">🦅 <b>Rug (Pull)</b><br><span style='color:#FF1493;'>{u_badge}</span><br><small>{u_reps} reps</small></div>
-        <div class="badge-box">🦵 <b>Benen (Squat)</b><br><span style='color:#FF1493;'>{s_badge}</span><br><small>{s_reps} reps (p.b.)</small></div>
-        <div class="badge-box">🧱 <b>Core (Plank)</b><br><span style='color:#FF1493;'>{pl_badge}</span><br><small>{pl_sec} sec</small></div>
+        <div class="badge-box">🛡️ <b>Push-ups</b><br><span style='color:#FF1493;'>{p_badge}</span><br><small>{p_reps} herhalingen</small></div>
+        <div class="badge-box">🦅 <b>Pull-ups</b><br><span style='color:#FF1493;'>{u_badge}</span><br><small>{u_reps} herhalingen</small></div>
     </div>
     """, unsafe_allow_html=True)
 
-    resterend_kcal = max(0, afval_kcal - st.session_state.kcal_gegeten)
-    resterend_water = max(0.0, doel_water_liters - (st.session_state.water_ml / 1000))
-    resterend_eiwit = max(0, doel_eiwit - st.session_state.eiwit_gegeten)
-    
-    st.subheader("📊 Dagelijkse Voedingsstatus")
-    col1, col2 = st.columns(2)
-    with col1:
-        st.write("**Calorieën**")
-        st.dataframe(pd.DataFrame({"Status": ["Gegeten", "Nog"], "Kcal": [st.session_state.kcal_gegeten, resterend_kcal]}), hide_index=True, use_container_width=True) 
-    with col2:
-        st.write("**Eiwitten**")
-        st.dataframe(pd.DataFrame({"Status": ["Binnen", "Nog"], "Gram": [st.session_state.eiwit_gegeten, resterend_eiwit]}), hide_index=True, use_container_width=True)
-
-    st.markdown("### 📋 Checklist")
-    if st.session_state.kaaklijn_gedaan:
-        st.success("✅ Kaaklijntraining voltooid!")
-    else:
-        st.info("❌ Je moet je kaaklijnoefeningen noch doen vandaag.")
-        
-    if st.session_state.oefening_gedaan:
-        st.success("✅ Krachttraining geregistreerd!")
-    else:
-        st.warning("⚠️ Voer je workout van vandaag noch in via tekst.")
-
 # --- TAB 2: AI SCANNER ---
 with tab2:
-    st.header("📸 AI Maaltijd Scanner")
-    foto = st.camera_input("Fotografeer je eten")
-    if foto:
-        st.success("Gescand: 420 kcal en 28g eiwitten!")
-        if st.button("Voeg toe"):
-            st.session_state.kcal_gegeten += 420
-            st.session_state.eiwit_gegeten += 28
+    st.title("📸 AI Maaltijd Scanner")
+    st.caption("Maak een foto van je bord om direct macro's te schatten")
+    
+    upload_file = st.file_uploader("Upload of maak een foto", type=["jpg", "jpeg", "png"])
+    if upload_file is not None:
+        st.image(upload_file, caption="Ingezonden maaltijd", use_container_width=True)
+        with st.spinner("AI analyseert de maaltijd..."):
+            time.sleep(2)
+        st.success("Maaltijd gedetecteerd: Kipfilet met Rijst en Broccoli")
+        
+        col1, col2 = st.columns(2)
+        col1.metric("Geschatte Kcal", "450 kcal")
+        col2.metric("Geschatte Eiwitten", "38 g")
+        
+        if st.button("Toevoegen aan logboek"):
+            st.session_state.kcal_gegeten += 450
+            st.session_state.eiwit_gegeten += 38
+            st.success("Toegevoegd aan dagtotaal!")
             st.rerun()
 
 # --- TAB 3: VOORTGANG ---
 with tab3:
-    st.header("📈 Voortgang & Groei")
-    vandaag = datetime.date.today()
-    st.line_chart(pd.DataFrame({"Datum": [vandaag - datetime.timedelta(days=i) for i in range(4, -1, -1)], "Gewicht (kg)": [user['weight']+1.0, user['weight']+0.7, user['weight']+0.4, user['weight']+0.2, user['weight']]}).set_index("Datum"))
+    st.title("📈 Dagelijkse Voortgang")
     
-    st.subheader("📊 Wekelijkse Records Invoeren")
-    c1, c2 = st.columns(2)
-    with c1:
-        n_pushups = st.number_input("Borst: Max Push-ups (Reps)", min_value=0, value=st.session_state.pushup_record)
-        n_pistols = st.number_input("Benen: Max Pistol Squats (Reps per been)", min_value=0, value=st.session_state.pistol_record)
-    with c2:
-        n_pullups = st.number_input("Rug: Max Pull-ups (Reps)", min_value=0, value=st.session_state.pullup_record)
-        n_plank = st.number_input("Core: Max Plank (Seconden)", min_value=0, value=st.session_state.plank_record)
-        
-    if st.button("💾 Alle Records Opslaan & Badges Updaten"):
-        st.session_state.pushup_record = n_pushups
-        st.session_state.pullup_record = n_pullups
-        st.session_state.pistol_record = n_pistols
-        st.session_state.plank_record = n_plank
-        st.success("Alle records succesvol opgeslagen!")
-        st.rerun()
+    col1, col2 = st.columns(2)
+    col1.metric("Calorieën", f"{st.session_state.kcal_gegeten} / {afval_kcal} kcal")
+    col2.metric("Eiwitten", f"{st.session_state.eiwit_gegeten} / {doel_eiwit} g")
     
-    # HIER IS DE TYPEFOUT VOLLEDIG VERGEPAST MET STARTWAARDEN [0, 0, 0, 0]
-    df_groei = pd.DataFrame({
-        "Weken": ["Week 1", "Week 2", "Week 3", "Week 4"], 
-        "Borst: Push-ups": [max(5, n_pushups-12), max(8, n_pushups-8), max(12, n_pushups-4), n_pushups], 
-        "Rug: Pull-ups": [max(1, n_pullups-6), max(2, n_pullups-4), max(4, n_pullups-2), n_pullups], 
-        "Benen: Pistol Squats": [max(0, n_pistols-6), max(2, n_pistols-4), max(4, n_pistols-2), n_pistols], 
-        "Core: Plank (Sec)": [max(10, n_plank-60), max(20, n_plank-40), max(30, n_plank-20), n_plank]
-    }).set_index("Weken")
-    st.line_chart(df_groei)
+    kcal_progress = min(1.0, float(st.session_state.kcal_gegeten) / max(1, afval_kcal))
+    st.progress(kcal_progress)
+    
+    # --- WEKELIJKS GEWICHT LOGBOEK ---
+    st.markdown("---")
+    st.markdown("### ⚖️ Wekelijks Gewicht Logboek")
+    st.caption("Log je gewicht één keer per week (bijvoorbeeld op zondag tijdens de testdag).")
 
-# --- TAB 4: WATER & HANDMATIGE INVOER ---
-with tab4:
-    st.header("💧 Handmatige Invoer")
-    ml_toevoegen = st.number_input("Hoeveelheid water (ml):", min_value=0, max_value=2000, value=300, step=50)
-    if st.button("➕ Water registreren"): st.session_state.water_ml += ml_toevoegen
-    st.progress(min((st.session_state.water_ml / 1000) / doel_water_liters, 1.0))
+    # Invoerveld voor het gewicht van deze week
+    gewicht_input = st.number_input(
+        "Huidig gewicht voor deze week (kg)", 
+        min_value=40.0, 
+        max_value=180.0, 
+        value=user["weight"], 
+        step=0.1,
+        key="wekelijks_gewicht_input"
+    )
+
+    if st.button("Weekmeting Opslaan"):
+        # Genereer een label op basis van het huidige weeknummer van het jaar
+        huidige_week_nummer = datetime.date.today().isocalendar()[1]
+        week_label = f"Week {huidige_week_nummer}"
         
-    st.subheader("🔥 Handmatige Voeding")
-    hkcal = st.number_input("Calorieën:", min_value=0, max_value=3000, value=250)
-    heiwit = st.number_input("Eiwit (g):", min_value=0, max_value=150, value=20)
-    if st.button("➕ Voeding opslaan"):
-        st.session_state.kcal_gegeten += hkcal
-        st.session_state.eiwit_gegeten += heiwit
-        st.success("Handmatig bijgewerkt!")
+        # Verwijder een eventuele oude meting van dezelfde week om duplicaten te voorkomen
+        st.session_state.wekelijks_gewicht = [
+            meting for meting in st.session_state.wekelijks_gewicht if meting["Week"] != week_label
+        ]
+        
+        # Voeg de nieuwe meting toe en update het hoofdgewicht van de gebruiker
+        st.session_state.wekelijks_gewicht.append({"Week": week_label, "Gewicht (kg)": gewicht_input})
+        st.session_state.user_db[st.session_state.current_user]["weight"] = gewicht_input
+        st.success(f"Gewicht voor {week_label} succesvol opgeslagen!")
+        st.rerun()
+
+    # Toon de wekelijkse trend in een grafiek
+    if st.session_state.wekelijks_gewicht:
+        df_wekelijks = pd.DataFrame(st.session_state.wekelijks_gewicht)
+        st.line_chart(df_wekelijks.set_index("Week"))
+        
+        with st.expander("📄 Bekijk alle weekmetingen"):
+            st.dataframe(df_wekelijks, hide_index=True, use_container_width=True)
+
+# --- TAB 4: WATER & ETEN ---
+with tab4:
+    st.title("💧 Water & Handmatige Invoer")
+    
+    huidige_water_liters = st.session_state.water_ml / 1000.0
+    st.metric("Water gedronken", f"{huidige_water_liters:.1f} / {doel_water_liters} L")
+    
+    col1, col2 = st.columns(2)
+    if col1.button("+250 ml Water"):
+        st.session_state.water_ml += 250
+        st.rerun()
+    if col2.button("Reset Water"):
+        st.session_state.water_ml = 0
+        st.rerun()
+        
+    st.markdown("---")
+    st.markdown("### 🍳 Handmatige Macro Invoer")
+    hand_kcal = st.number_input("Calorieën (kcal)", min_value=0, max_value=5000, value=0)
+    hand_eiwit = st.number_input("Eiwitten (g)", min_value=0, max_value=300, value=0)
+    if st.button("Voeg macro's toe"):
+        st.session_state.kcal_gegeten += hand_kcal
+        st.session_state.eiwit_gegeten += hand_eiwit
+        st.success("Macro's succesvol bijgewerkt!")
+        st.rerun()
 
 # --- TAB 5: OEFENINGEN ---
 with tab5:
-    st.header("🗿 Dagelijkse Trainingen")
-    if st.button("⏱️ Start 5 Minuten Mewing Timer"):
-        timer_placeholder = st.empty()
-        for resterend in range(5 * 60, -1, -1):
-            mins, secs = divmod(resterend, 60)
-            timer_placeholder.metric("Resterende tijd", f"{mins:02d}:{secs:02d}")
-            time.sleep(1)
-        st.balloons()
-    o1 = st.checkbox("Mewing voltooid")
-    o2 = st.checkbox("Chin Tucks — 3 sets")
-    if o1 and o2: st.session_state.kaaklijn_gedaan = True
-        
-    st.subheader("Spiertraining Tekstinvoer (Eigen Lichaamsgewicht)")
-    user_oefening = st.text_input("Typ in wat je hebt gedaan:")
-    if st.button("Verstuur workout"):
-        if user_oefening: st.session_state.oefening_gedaan = True
+    st.title("🗿 Kaaklijn & Calisthenics Records")
+    
+    st.checkbox("Dagelijkse Kaaklijnoefeningen gedaan (Mewing / Kauwen)", key="kaaklijn_gedaan")
+    st.checkbox("Dagelijkse Workout afgerond", key="oefening_gedaan")
+    
+    st.markdown("---")
+    st.markdown("### 🏆 Werk je persoonlijke records bij")
+    
+    new_pushup = st.number_input("Push-ups max reps", min_value=0, max_value=200, value=st.session_state.pushup_record)
+    new_pullup = st.number_input("Pull-ups max reps", min_value=0, max_value=100, value=st.session_state.pullup_record)
+    
+    if st.button("Records Opslaan"):
+        st.session_state.pushup_record = new_pushup
+        st.session_state.pullup_record = new_pullup
+        st.success("Je records zijn bijgewerkt!")
+        st.rerun()
 
