@@ -24,12 +24,12 @@ st.markdown("""
 
 # --- 2. LOKALE DATABASE IN HET GEHEUGEN ---
 if "user_db" not in st.session_state:
-    st.session_state.user_db = {} # Slaat accounts tijdelijk op
+    st.session_state.user_db = {} 
 
 def make_hashes(password):
     return hashlib.sha256(str.encode(password)).hexdigest()
 
-# --- 3. SESSION STATE TRACKING INITIALISATIE ---
+# --- 3. TRACKING INITIALISATIE ---
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
     st.session_state.current_user = ""
@@ -44,7 +44,7 @@ if "kaaklijn_gedaan" not in st.session_state:
 if "oefening_gedaan" not in st.session_state:
     st.session_state.oefening_gedaan = False
 
-# --- 4. AUTHENTICATIE SCHERM ---
+# --- 4. INLOG / REGISTRATIE SCHERM ---
 if not st.session_state.logged_in:
     st.title("📸 NutriSnap AI")
     st.caption("Veilig inloggen op jouw toestel")
@@ -87,10 +87,10 @@ if not st.session_state.logged_in:
                 st.error("Onjuiste e-mail of wachtwoord.")
     st.stop()
 
-# --- 5. GEBRUIKERS DATA & INSTELLINGEN ---
+# --- 5. HOOFDAPPLICATIE (NA LOGIN) ---
 user = st.session_state.user_db[st.session_state.current_user]
 
-# Dynamische gezondheidsberekeningen
+# Gezondheidsberekeningen
 bmr = (10 * user["weight"]) + (6.25 * user["height"]) - (5 * user["age"]) + 5
 activity = 1.2 if user["days_train"] <= 1 else 1.375 if user["days_train"] <= 3 else 1.55 if user["days_train"] <= 5 else 1.725
 extra_kcal = (user["duration_train"] * 6 * user["days_train"]) / 7
@@ -98,18 +98,30 @@ afval_kcal = int((bmr * activity) + extra_kcal - 500)
 doel_eiwit = int(user["weight"] * 2.0)
 doel_water_liters = round((user["weight"] * 0.035) + ((user["duration_train"] * 0.01 * user["days_train"]) / 7), 1)
 
+# Zijmenu instellen
 st.sidebar.title("✨ NutriSnap Pro")
 st.sidebar.markdown(f"Ingelogd als: **{user['name']}**")
+st.sidebar.markdown(f"""
+📋 **Jouw Dagelijkse Doelen:**
+* 🔥 **Calorieën:** `{afval_kcal} kcal`
+* 🥩 **Eiwitten:** `{doel_eiwit} g`
+* 💧 **Waterdoel:** `{doel_water_liters} Liter`
+""")
+
 if st.sidebar.button("Uitloggen"):
     st.session_state.logged_in = False
     st.session_state.current_user = ""
     st.rerun()
 
+# Dashboard tabs
 tab1, tab2, tab3, tab4, tab5 = st.tabs(["🏠 Hoofdscherm", "📸 AI Scanner", "📈 Voortgang", "💧 Water & Eten", "🗿 Oefeningen"])
 
-# --- TAB 1: HOOFDSCHERM ---
+# --- TAB 1: HOOFDSCHERM (DASHBOARD) ---
 with tab1:
     st.title(f"Hoi {user['name']}! 👋")
+    st.caption("Jouw overzicht van vandaag:")
+
+    # Status berekeningen
     resterend_kcal = max(0, afval_kcal - st.session_state.kcal_gegeten)
     resterend_water = max(0.0, doel_water_liters - (st.session_state.water_ml / 1000))
     resterend_eiwit = max(0, doel_eiwit - st.session_state.eiwit_gegeten)
@@ -118,20 +130,32 @@ with tab1:
     col1, col2 = st.columns(2)
     with col1:
         st.write("**Calorieën Status**")
-        st.dataframe(pd.DataFrame({"Status": ["Gegeten", "Nog"], "Kcal": [st.session_state.kcal_gegeten, resterend_kcal]}), hide_index=True) 
+        df_kcal = pd.DataFrame({"Status": ["Gegeten", "Nog"], "Kcal": [st.session_state.kcal_gegeten, resterend_kcal]})
+        st.dataframe(df_kcal, hide_index=True, use_container_width=True) 
     with col2:
         st.write("**Eiwitten Status**")
-        st.dataframe(pd.DataFrame({"Status": ["Binnen", "Nog"], "Gram": [st.session_state.eiwit_gegeten, resterend_eiwit]}), hide_index=True)
+        df_eiwit = pd.DataFrame({"Status": ["Binnen", "Nog"], "Gram": [st.session_state.eiwit_gegeten, resterend_eiwit]})
+        st.dataframe(df_eiwit, hide_index=True, use_container_width=True)
 
     col_m1, col_m2 = st.columns(2)
     with col_m1: st.metric(label="Nog te eten calorieën", value=f"{resterend_kcal} kcal", delta=f"Doel: {afval_kcal}")
     with col_m2: st.metric(label="Nog te drinken water", value=f"{resterend_water:.1f} L", delta=f"Doel: {doel_water_liters}L")
 
     st.markdown("### 📋 Checklist")
-    st.success("✅ Kaaklijntraining voltooid!") if st.session_state.kaaklijn_gedaan else st.info("❌ Je moet je kaaklijnoefeningen nog doen.")
-    st.success("✅ Krachttraining geregistreerd!") if st.session_state.oefening_gedaan else st.warning("⚠️ Voer je workout van vandaag nog in via tekst.")
+    
+    # HIER IS DE KAAKLIJN CHECKLIST FOUTLOOS HERSTELD
+    if st.session_state.kaaklijn_gedaan:
+        st.success("✅ Kaaklijntraining voltooid!")
+    else:
+        st.info("❌ Je moet je kaaklijnoefeningen nog doen vandaag.")
+        
+    # HIER IS DE WORKOUT CHECKLIST FOUTLOOS HERSTELD
+    if st.session_state.oefening_gedaan:
+        st.success("✅ Krachttraining geregistreerd!")
+    else:
+        st.warning("⚠️ Voer je workout van vandaag noch in via tekst.")
 
-# --- TAB 2: AI SCANNER (SIMULATIE) ---
+# --- TAB 2: AI SCANNER ---
 with tab2:
     st.header("📸 AI Maaltijd Scanner")
     foto = st.camera_input("Fotografeer je eten")
@@ -157,15 +181,14 @@ with tab3:
     st.line_chart(pd.DataFrame({"Datum": [vandaag - datetime.timedelta(days=i) for i in range(4, -1, -1)], "Gewicht (kg)": [user['weight']+1.0, user['weight']+0.7, user['weight']+0.4, user['weight']+0.2, user['weight']]}).set_index("Datum"))
     
     st.subheader("📊 Wekelijkse Lichaamsgewicht Groei")
-    st.caption("Test 1x per week je maximale kracht met je eigen lichaamsgewicht. Elke spiergroep heeft een eigen gekleurde lijn!")
+    st.caption("Test 1x per week je maximale kracht met je eigen lichaamsgewicht.")
     
-    # HIER ZITTEN DE GECORRIGEERDE CIJFERS ACHTER DE DUBBELE PUNTEN
     df_groei = pd.DataFrame({
         "Weken": ["Week 1", "Week 2", "Week 3", "Week 4"], 
-        "Borst: Push-ups": [15, 18, 20, 22], 
-        "Rug: Pull-ups": [5, 6, 8, 9], 
-        "Benen: Pistol Squats": [6, 8, 10, 12], 
-        "Core: Plank (Sec)": [45, 50, 60, 65]
+        "Borst: Push-ups": [20, 22, 25, 27], 
+        "Rug: Pull-ups": [6, 7, 7, 9], 
+        "Benen: Pistol Squats": [5, 6, 8, 10], 
+        "Core: Plank (Sec)": [60, 65, 75, 90]
     }).set_index("Weken")
     st.line_chart(df_groei)
 
