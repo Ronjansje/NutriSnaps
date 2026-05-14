@@ -79,13 +79,13 @@ if not st.session_state.logged_in:
             if "@" in email_input and password_input and name:
                 account_data = {
                     "password": make_hashes(password_input), "name": name, "age": age,
-                    "height": height, "weight": weight, "target_weight": target_weight,
+                    "height": height, "weight": float(weight), "target_weight": float(target_weight),
                     "days_train": days_train, "duration_train": duration_train,
-                    "neck": neck_in, "waist": waist_in
+                    "neck": float(neck_in), "waist": float(waist_in)
                 }
                 st.session_state.user_db[email_input] = account_data
                 # Voeg eerste wekelijkse gewicht toe op basis van profiel
-                st.session_state.wekelijks_gewicht = [{"Week": f"Week {datetime.date.today().isocalendar()[1]}", "Gewicht (kg)": weight}]
+                st.session_state.wekelijks_gewicht = [{"Week": f"Week {datetime.date.today().isocalendar()[1]}", "Gewicht (kg)": float(weight)}]
                 st.success("Account succesvol aangemaakt! Je kunt nu direct inloggen.")
             else:
                 st.error("Vul alle velden correct in.")
@@ -98,11 +98,11 @@ if not st.session_state.logged_in:
                 st.session_state.current_user = email_input
                 st.rerun()
             else:
-                # Noodknop fallback voor lokaal testen zonder dataloss
+                # Noodknop fallback voor lokaal testen zonder dataloss (Hier stonden integers, nu gecorrigeerd naar floats!)
                 if email_input and password_input:
                     st.session_state.user_db[email_input] = {
-                        "password": hashed_pwd, "name": "Gebruiker", "age": 20, "height": 180, "weight": 80,
-                        "target_weight": 75, "days_train": 3, "duration_train": 60, "neck": 38, "waist": 85
+                        "password": hashed_pwd, "name": "Gebruiker", "age": 20, "height": 180, "weight": 80.0,
+                        "target_weight": 75.0, "days_train": 3, "duration_train": 60, "neck": 38.0, "waist": 85.0
                     }
                     if not st.session_state.wekelijks_gewicht:
                         st.session_state.wekelijks_gewicht = [{"Week": f"Week {datetime.date.today().isocalendar()[1]}", "Gewicht (kg)": 80.0}]
@@ -221,29 +221,29 @@ with tab3:
     st.markdown("### ⚖️ Wekelijks Gewicht Logboek")
     st.caption("Log je gewicht één keer per week (bijvoorbeeld op zondag tijdens de testdag).")
 
-    # Invoerveld voor het gewicht van deze week
+    # Invoerveld (Gecorrigeerd naar float() om typesync fouten te voorkomen)
     gewicht_input = st.number_input(
         "Huidig gewicht voor deze week (kg)", 
         min_value=40.0, 
         max_value=180.0, 
-        value=user["weight"], 
+        value=float(user["weight"]), 
         step=0.1,
         key="wekelijks_gewicht_input"
     )
 
     if st.button("Weekmeting Opslaan"):
-        # Genereer een label op basis van het huidige weeknummer van het jaar
+        # Haal het weeknummer op uit de tuple
         huidige_week_nummer = datetime.date.today().isocalendar()[1]
         week_label = f"Week {huidige_week_nummer}"
         
-        # Verwijder een eventuele oude meting van dezelfde week om duplicaten te voorkomen
+        # Verwijder oude meting van deze week
         st.session_state.wekelijks_gewicht = [
             meting for meting in st.session_state.wekelijks_gewicht if meting["Week"] != week_label
         ]
         
-        # Voeg de nieuwe meting toe en update het hoofdgewicht van de gebruiker
-        st.session_state.wekelijks_gewicht.append({"Week": week_label, "Gewicht (kg)": gewicht_input})
-        st.session_state.user_db[st.session_state.current_user]["weight"] = gewicht_input
+        # Voeg de nieuwe float meting toe
+        st.session_state.wekelijks_gewicht.append({"Week": week_label, "Gewicht (kg)": float(gewicht_input)})
+        st.session_state.user_db[st.session_state.current_user]["weight"] = float(gewicht_input)
         st.success(f"Gewicht voor {week_label} succesvol opgeslagen!")
         st.rerun()
 
@@ -298,4 +298,3 @@ with tab5:
         st.session_state.pullup_record = new_pullup
         st.success("Je records zijn bijgewerkt!")
         st.rerun()
-
