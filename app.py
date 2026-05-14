@@ -55,14 +55,14 @@ if "plank_record" not in st.session_state: st.session_state.plank_record = 0
 
 if "workout_log" not in st.session_state: st.session_state.workout_log = []
 
-# --- EXERCISE MAPPER VOOR SPIEREN & HEATMAP ---
-EXERCISE_MUSCLES = {
-    "Pushups (Regulier)": {"Borst": 1.0, "Triceps": 0.7, "Schouders": 0.4, "Core": 0.3},
-    "Diamond Pushups": {"Triceps": 1.0, "Borst": 0.6, "Schouders": 0.4, "Core": 0.3},
-    "Pullups": {"Rug": 1.0, "Biceps": 0.6, "Core": 0.2},
-    "Chin-ups": {"Biceps": 1.0, "Rug": 0.7, "Core": 0.2},
-    "Pistol Squats": {"Benen": 1.0, "Core": 0.4},
-    "Dips": {"Triceps": 1.0, "Borst": 0.7, "Schouders": 0.5},
+# --- STANDAARD OEFENINGEN DICTIONARY ---
+PRESET_EXERCISES = {
+    "Pushups (Regulier)": {"Borst": 1.0, "Triceps": 0.6, "Schouders": 0.4, "Core": 0.3},
+    "Diamond Pushups": {"Triceps": 1.0, "Borst": 0.5, "Onderarmen": 0.3, "Core": 0.3},
+    "Pullups": {"Lats (Rug)": 1.0, "Trapezius": 0.5, "Biceps": 0.6, "Onderarmen": 0.4},
+    "Chin-ups": {"Biceps": 1.0, "Lats (Rug)": 0.6, "Onderarmen": 0.4},
+    "Pistol Squats": {"Benen": 1.0, "Billen/Hamstrings": 0.5, "Core": 0.4},
+    "Dips": {"Triceps": 1.0, "Borst": 0.7, "Schouders": 0.4},
     "Plank": {"Core": 1.0, "Schouders": 0.2},
     "Mewing Sessie (minuten)": {"Kaaklijn": 1.0}
 }
@@ -190,7 +190,6 @@ with tab1:
         st.success("👑 Jouw vetpercentage is optimaal voor een messcherpe kaaklijn!")
 
     st.markdown("### 🏅 Jouw Mijlpalen & Rangen")
-    
     p_badge = "🥉 Beginner" if st.session_state.pushup_record <= 15 else "🥈 Novice" if st.session_state.pushup_record <= 30 else "🥇 Elite"
     u_badge = "🥉 Beginner" if st.session_state.pullup_record <= 5 else "🥈 Novice" if st.session_state.pullup_record <= 12 else "🥇 Elite"
     s_badge = "🥉 Beginner" if st.session_state.pistol_record <= 3 else "🥈 Novice" if st.session_state.pistol_record <= 10 else "🥇 Elite"
@@ -222,8 +221,8 @@ with tab2:
         if scan_method == "📁 Bestand uploaden":
             st.image(picture, caption="Geüploade maaltijd", use_container_width=True)
             
-        with st.spinner("AI scant maaltijd en berekent macro's..."):
-            time.sleep(2)
+        with st.spinner("AI scant maaltijd..."):
+            time.sleep(1.5)
         st.success("Analyse voltooid!")
         
         sim_kcal = 520
@@ -263,7 +262,6 @@ with tab3:
 # --- TAB 4: WATER & ETEN ---
 with tab4:
     st.title("💧 Water & Voeding Tracker")
-    
     st.subheader(f"Waterinname: {st.session_state.water_ml / 1000:.2f} / {doel_water_liters} L")
     st.progress(min(1.0, st.session_state.water_ml / (doel_water_liters * 1000)))
     
@@ -290,7 +288,7 @@ with tab4:
     st.write(f"🔥 Calorieën: {st.session_state.kcal_gegeten} / {afval_kcal} kcal")
     st.write(f"🥩 Eiwitten: {st.session_state.eiwit_gegeten} / {doel_eiwit} g")
 
-# --- TAB 5: WORKOUT & DUBBELE SPIEREN-HEATMAP ---
+# --- TAB 5: OEFENINGEN & DETAILED HEATMAP ---
 with tab5:
     st.title("🗿 Oefeningen & Kaaklijntraining")
     
@@ -301,165 +299,136 @@ with tab5:
     st.session_state.kaaklijn_gedaan = st.session_state.kaaklijn_chk
     st.session_state.oefening_gedaan = st.session_state.workout_chk
     
-    # Bereken totale spierbelasting van vandaag voor de 2D Heatmaps
-    muscle_scores = {"Kaaklijn": 0, "Borst": 0, "Triceps": 0, "Schouders": 0, "Rug": 0, "Biceps": 0, "Benen": 0, "Core": 0}
+    # Berekening van spieractivatie uit logboek
+    muscle_scores = {
+        "Kaaklijn": 0, "Borst": 0, "Biceps": 0, "Triceps": 0, "Onderarmen": 0, 
+        "Schouders": 0, "Core": 0, "Benen": 0, "Lats (Rug)": 0, "Trapezius": 0, "Billen/Hamstrings": 0
+    }
     for item in st.session_state.workout_log:
-        oefen_naam = item["Oefening"]
-        if oefen_naam in EXERCISE_MUSCLES:
-            total_vol = item["Sets"] * item["Reps/Duur"]
-            for m_group, factor in EXERCISE_MUSCLES[oefen_naam].items():
-                muscle_scores[m_group] += total_vol * factor
+        total_vol = item["Sets"] * item["Reps/Duur"]
+        # Als er handmatige spierverdelingen zijn opgeslagen
+        if "Muscles" in item:
+            for m_group, val in item["Muscles"].items():
+                if m_group in muscle_scores:
+                    muscle_scores[m_group] += total_vol * val
 
-    # --- GEAUTOMATISEERDE DUBBELE HEATMAP (VOORKANT EN ACHTERKANT) ---
-    st.markdown("### 📊 Live 2D Spieractivatie Kaart")
-    st.caption("Links staat de voorkant, rechts de achterkant. Neon-roze is het hoogst belast.")
+    st.markdown("### 📊 Live Gedetailleerde Anatomie Heatmap")
+    st.caption("Bekijk hieronder de spiergroepen van de voor- én achterkant. Neon-roze is het zwaarst getraind.")
     
     js_muscle_data = json.dumps(muscle_scores)
     
+    # HTML5 Dual Canvas Anatomie-engine
     heatmap_html = f"""
-    <div style="text-align: center; background-color: #1F2937; padding: 15px; border-radius: 12px; border: 1px solid #374151;">
-        <canvas id="muscleCanvas" width="460" height="340" style="background-color: #111827; border-radius: 8px;"></canvas>
+    <div style="display: flex; gap: 15px; justify-content: center; background-color: #1F2937; padding: 15px; border-radius: 12px; border: 1px solid #374151;">
+        <div>
+            <span style="color:#9CA3AF; font-size:12px; display:block; text-align:center; margin-bottom:5px;">VOORKANT</span>
+            <canvas id="frontCanvas" width="200" height="340" style="background-color: #111827; border-radius: 8px;"></canvas>
+        </div>
+        <div>
+            <span style="color:#9CA3AF; font-size:12px; display:block; text-align:center; margin-bottom:5px;">ACHTERKANT</span>
+            <canvas id="backCanvas" width="200" height="340" style="background-color: #111827; border-radius: 8px;"></canvas>
+        </div>
     </div>
     <script>
         const scores = {js_muscle_data};
-        const canvas = document.getElementById('muscleCanvas');
-        const ctx = canvas.getContext('2d');
-        
         let maxScore = 0;
         for (let m in scores) {{ if(scores[m] > maxScore) maxScore = scores[m]; }}
         
-        function getColor(muscleName) {{
-            let score = scores[muscleName] || 0;
-            if (score === 0) return '#4B5563'; 
+        function getColor(mName) {{
+            let s = scores[mName] || 0;
+            if (s === 0) return '#374151'; 
             if (maxScore === 0) return '#FF1493';
-            let ratio = score / maxScore;
+            let ratio = s / maxScore;
             return `rgb(${{Math.floor(200 + 55 * ratio)}}, ${{Math.floor(20 + 20 * (1-ratio))}}, ${{Math.floor(100 + 155 * ratio)}})`;
         }}
 
-        ctx.clearRect(0,0,460,340);
-        ctx.lineWidth = 2.5;
-        ctx.strokeStyle = '#FFFFFF';
+        // --- VOORKANT DRAWING ---
+        const fCtx = document.getElementById('frontCanvas').getContext('2d');
+        fCtx.lineWidth = 1.5; fCtx.strokeStyle = '#FFFFFF';
         
-        // --- 1. FIGUUR LINKS: VOORKANT ---
-        let offsetF = 30;
-        
-        // Hoofd & Kaaklijn
-        ctx.fillStyle = getColor('Kaaklijn');
-        ctx.beginPath(); ctx.arc(80 + offsetF, 45, 18, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-        
+        // Hoofd & Kaak
+        fCtx.fillStyle = getColor('Kaaklijn');
+        fCtx.beginPath(); fCtx.arc(100, 35, 16, 0, Math.PI*2); fCtx.fill(); fCtx.stroke();
         // Borst
-        ctx.fillStyle = getColor('Borst');
-        ctx.fillRect(52 + offsetF, 80, 56, 35); ctx.strokeRect(52 + offsetF, 80, 56, 35);
+        fCtx.fillStyle = getColor('Borst');
+        fCtx.fillRect(75, 75, 50, 30); fCtx.strokeRect(75, 75, 50, 30);
+        // Abs / Core
+        fCtx.fillStyle = getColor('Core');
+        fCtx.fillRect(80, 110, 40, 50); fCtx.strokeRect(80, 110, 40, 50);
+        // Schouders Voor
+        fCtx.fillStyle = getColor('Schouders');
+        fCtx.beginPath(); fCtx.arc(62, 82, 10, 0, Math.PI*2); fCtx.fill(); fCtx.stroke();
+        fCtx.beginPath(); fCtx.arc(138, 82, 10, 0, Math.PI*2); fCtx.fill(); fCtx.stroke();
+        // Gedetailleerde Arm Voorkant: Biceps & Onderarm
+        fCtx.fillStyle = getColor('Biceps');
+        fCtx.fillRect(48, 95, 14, 35); fCtx.strokeRect(48, 95, 14, 35);
+        fCtx.fillRect(138, 95, 14, 35); fCtx.strokeRect(138, 95, 14, 35);
+        fCtx.fillStyle = getColor('Onderarmen');
+        fCtx.fillRect(45, 133, 13, 35); fCtx.strokeRect(45, 133, 13, 35);
+        fCtx.fillRect(142, 133, 13, 35); fCtx.strokeRect(142, 133, 13, 35);
+        // Benen / Quads
+        fCtx.fillStyle = getColor('Benen');
+        fCtx.fillRect(78, 165, 18, 80); fCtx.strokeRect(78, 165, 18, 80);
+        fCtx.fillRect(104, 165, 18, 80); fCtx.strokeRect(104, 165, 18, 80);
+
+        // --- ACHTERKANT DRAWING ---
+        const bCtx = document.getElementById('backCanvas').getContext('2d');
+        bCtx.lineWidth = 1.5; bCtx.strokeStyle = '#FFFFFF';
         
-        // Core / Abs
-        ctx.fillStyle = getColor('Core');
-        ctx.fillRect(57 + offsetF, 120, 46, 50); ctx.strokeRect(57 + offsetF, 120, 46, 50);
-        
-        // Schouders Voorkant
-        ctx.fillStyle = getColor('Schouders');
-        ctx.beginPath(); ctx.arc(38 + offsetF, 88, 11, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-        ctx.beginPath(); ctx.arc(122 + offsetF, 88, 11, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-        
-        // Armen / Biceps (Voorkant)
-        ctx.fillStyle = getColor('Biceps');
-        ctx.fillRect(20 + offsetF, 103, 15, 50); ctx.strokeRect(20 + offsetF, 103, 15, 50);
-        ctx.fillRect(125 + offsetF, 103, 15, 50); ctx.strokeRect(125 + offsetF, 103, 15, 50);
-        
-        // Benen Voorkant
-        ctx.fillStyle = getColor('Benen');
-        ctx.fillRect(55 + offsetF, 175, 20, 80); ctx.strokeRect(55 + offsetF, 175, 20, 80);
-        ctx.fillRect(85 + offsetF, 175, 20, 80); ctx.strokeRect(85 + offsetF, 175, 20, 80);
-        
-        // --- 2. FIGUUR RECHTS: ACHTERKANT ---
-        let offsetB = 250;
-        
-        // Hoofd Achterkant
-        ctx.fillStyle = '#4B5563';
-        ctx.beginPath(); ctx.arc(80 + offsetB, 45, 18, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-        
-        // Rug (Lats / Traps)
-        ctx.fillStyle = getColor('Rug');
-        ctx.fillRect(52 + offsetB, 80, 56, 60); ctx.strokeRect(52 + offsetB, 80, 56, 60);
-        
-        // Glutes / Onderrug
-        ctx.fillStyle = getColor('Benen');
-        ctx.fillRect(55 + offsetB, 145, 50, 25); ctx.strokeRect(55 + offsetB, 145, 50, 25);
-        
-        // Schouders Achterkant
-        ctx.fillStyle = getColor('Schouders');
-        ctx.beginPath(); ctx.arc(38 + offsetB, 88, 11, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-        ctx.beginPath(); ctx.arc(122 + offsetB, 88, 11, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-        
-        // Armen / Triceps (Achterkant)
-        ctx.fillStyle = getColor('Triceps');
-        ctx.fillRect(20 + offsetB, 103, 15, 50); ctx.strokeRect(20 + offsetB, 103, 15, 50);
-        ctx.fillRect(125 + offsetB, 103, 15, 50); ctx.strokeRect(125 + offsetB, 103, 15, 50);
-        
-        // Benen Achterkant (Hamstrings / Kuiten)
-        ctx.fillStyle = getColor('Benen');
-        ctx.fillRect(55 + offsetB, 175, 20, 80); ctx.strokeRect(55 + offsetB, 175, 20, 80);
-        ctx.fillRect(85 + offsetB, 175, 20, 80); ctx.strokeRect(85 + offsetB, 175, 20, 80);
-        
-        // Tekst labels
-        ctx.fillStyle = '#9CA3AF'; ctx.font = 'bold 12px sans-serif';
-        ctx.fillText("VOORKANT", 75, 290);
-        ctx.fillText("ACHTERKANT", 290, 290);
+        // Hoofd Achter
+        bCtx.fillStyle = '#374151';
+        bCtx.beginPath(); bCtx.arc(100, 35, 16, 0, Math.PI*2); bCtx.fill(); bCtx.stroke();
+        // Trapezius (Bovenrug)
+        bCtx.fillStyle = getColor('Trapezius');
+        bCtx.beginPath(); bCtx.moveTo(100,60); bCtx.lineTo(130,75); bCtx.lineTo(70,75); bCtx.closePath(); bCtx.fill(); bCtx.stroke();
+        // Lats (Middenrug)
+        bCtx.fillStyle = getColor('Lats (Rug)');
+        bCtx.fillRect(75, 78, 50, 42); bCtx.strokeRect(75, 78, 50, 42);
+        // Schouders Achter
+        bCtx.fillStyle = getColor('Schouders');
+        bCtx.beginPath(); bCtx.arc(62, 82, 10, 0, Math.PI*2); bCtx.fill(); bCtx.stroke();
+        bCtx.beginPath(); bCtx.arc(138, 82, 10, 0, Math.PI*2); bCtx.fill(); bCtx.stroke();
+        // Gedetailleerde Arm Achterkant: Triceps & Onderarm
+        bCtx.fillStyle = getColor('Triceps');
+        bCtx.fillRect(48, 95, 14, 35); bCtx.strokeRect(48, 95, 14, 35);
+        bCtx.fillRect(138, 95, 14, 35); bCtx.strokeRect(138, 95, 14, 35);
+        bCtx.fillStyle = getColor('Onderarmen');
+        bCtx.fillRect(45, 133, 13, 35); bCtx.strokeRect(45, 133, 13, 35);
+        bCtx.fillRect(142, 133, 13, 35); bCtx.strokeRect(142, 133, 13, 35);
+        // Glutes / Hamstrings
+        bCtx.fillStyle = getColor('Billen/Hamstrings');
+        bCtx.fillRect(78, 165, 18, 80); bCtx.strokeRect(78, 165, 18, 80);
+        bCtx.fillRect(104, 165, 18, 80); bCtx.strokeRect(104, 165, 18, 80);
     </script>
     """
-    html(heatmap_html, height=360)
+    html(heatmap_html, height=375)
 
-    st.markdown("### 📝 Specifieke Oefening Loggen")
-    with st.form("exercise_form"):
-        ex_name = st.selectbox("Kies oefening:", list(EXERCISE_MUSCLES.keys()))
-        col1, col2, col3 = st.columns(3)
-        with col1:
-            ex_sets = st.number_input("Sets", min_value=1, value=3)
-        with col2:
-            ex_reps = st.number_input("Reps / Duur", min_value=1, value=10)
-        with col3:
-            ex_weight = st.number_input("Extra Gewicht (kg)", min_value=0.0, value=0.0)
+    st.markdown("### 📝 Voeg je Training of Eigen Oefening Toe")
+    
+    ex_mode = st.radio("Type oefening invoer:", ["Selecteer uit lijst", "✍️ Zelf eigen oefening opschrijven"], horizontal=True)
+    
+    with st.form("dynamic_exercise_form"):
+        chosen_name = ""
+        custom_muscles = {}
+        
+        if ex_mode == "Selecteer uit lijst":
+            chosen_name = st.selectbox("Kies standaard oefening:", list(PRESET_EXERCISES.keys()))
+            custom_muscles = PRESET_EXERCISES[chosen_name]
+        else:
+            chosen_name = st.text_input("Schrijf hier de naam van je eigen oefening:", value="Eigen Oefening")
+            st.markdown("<small>Stel in welke spieren deze oefening traint (0 = niet, 1 = maximaal):</small>", unsafe_allow_html=True)
             
-        submit_ex = st.form_submit_button("Oefening Opslaan")
-        if submit_ex:
-            st.session_state.workout_log.append({
-                "Tijdstip": datetime.datetime.now().strftime("%H:%M"),
-                "Oefening": ex_name,
-                "Sets": ex_sets,
-                "Reps/Duur": ex_reps,
-                "Gewicht (kg)": ex_weight
-            })
-            st.success(f"{ex_name} toegevoegd! De spierkaarten hierboven zijn direct bijgewerkt.")
-            time.sleep(0.5)
-            st.rerun()
-
-    if st.session_state.workout_log:
-        st.markdown("##### 📋 Oefeningen van Vandaag:")
-        st.dataframe(pd.DataFrame(st.session_state.workout_log), use_container_width=True)
-        if st.button("Logboek Leegmaken"):
-            st.session_state.workout_log = []
-            st.rerun()
-
-# --- TAB 6: PROFIEL AANPASSEN ---
-with tab6:
-    st.title("⚙️ Account & Profiel Aanpassen")
-    st.caption("Wijzig hier je persoonlijke instellingen. Je doelen worden direct opnieuw berekend.")
-    
-    current_birthday = datetime.datetime.strptime(user.get("birthday", "2000-01-01"), "%Y-%m-%d").date()
-    
-    with st.form("profile_form"):
-        new_name = st.text_input("Voornaam", value=user["name"])
-        new_birthday = st.date_input("Geboortedatum", min_value=datetime.date(1930, 1, 1), max_value=datetime.date.today(), value=current_birthday)
-        new_height = st.number_input("Lengte (cm)", min_value=120, max_value=230, value=int(user["height"]))
-        new_weight = st.number_input("Huidig Gewicht (kg)", min_value=40.0, max_value=180.0, value=float(user["weight"]))
-        new_target_weight = st.number_input("Doel Gewicht (kg)", min_value=40.0, max_value=180.0, value=float(user["target_weight"]))
-        
-        st.markdown("##### 🏋️‍♂️ Trainingsinstellingen")
-        new_days = st.slider("Aantal dagen per week sporten", 0, 7, int(user["days_train"]))
-        new_duration = st.slider("Gemiddelde duur per training (minuten)", 15, 180, int(user["duration_train"]))
-        
-        st.markdown("##### 📏 Omtrekmaten")
-        new_neck = st.number_input("Nekomtrek (cm)", min_value=20.0, max_value=60.0, value=float(user["neck"]))
-        new_waist = st.number_input("Buikomtrek (cm)", min_value=50.0, max_value=150.0, value=float(user["waist"]))
-        
-        submit_profile = st.form_submit_button("Wijzigingen Opslaan")
+            col_m1, col_m2 = st.columns(2)
+            with col_m1:
+                m_kaak = st.slider("Kaaklijn", 0.0, 1.0, 0.0, step=0.1)
+                m_borst = st.slider("Borst", 0.0, 1.0, 0.0, step=0.1)
+                m_bicep = st.slider("Biceps (Arm)", 0.0, 1.0, 0.0, step=0.1)
+                m_tricep = st.slider("Triceps (Arm)", 0.0, 1.0, 0.0, step=0.1)
+                m_arm = st.slider("Onderarmen", 0.0, 1.0, 0.0, step=0.1)
+            with col_m2:
+                m_schouder = st.slider("Schouders", 0.0, 1.0, 0.0, step=0.1)
+                m_core = st.slider("Core / Abs", 0.0, 1.0, 0.0, step=0.1)
+                m_lats = st.slider("Lats (Rug)", 0.0, 1.0, 0.0, step=0.1)
+                m_trap = st.slider("Trapezius (Bovenrug)", 0.0, 1.0, 0.0, step=0.1)
+                m_legs = st.slider("Benen & Billen", 0.
 
