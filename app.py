@@ -51,7 +51,7 @@ if "pullup_record" not in st.session_state: st.session_state.pullup_record = 4
 if "pistol_record" not in st.session_state: st.session_state.pistol_record = 2
 if "plank_record" not in st.session_state: st.session_state.plank_record = 45
 
-# NIEUW: Historie logboek voor progressie diagrammen (startdata ingevuld als voorbeeld)
+# Historie logboek voor progressie diagrammen (startdata ingevuld als voorbeeld)
 if "pr_history" not in st.session_state:
     st.session_state.pr_history = [
         {"Datum": "2026-04-26", "Pushups": 10, "Pullups": 3, "Pistol Squats": 1, "Plank (sec)": 30},
@@ -222,24 +222,26 @@ with tab2:
                     st.session_state.eiwit_gegeten += mock_protein
                     st.rerun()
 
-# --- TAB 3: VOORTGANG (VERBETERING OVER TIJDLIJN) ---
+# --- TAB 3: VOORTGANG (SAMENGEVOEGD DIAGRAM) ---
 with tab3:
     st.title("📈 Jouw Progressie Tijdlijn")
-    st.caption("Bekijk hier hoe je elke week sterker wordt na je zondagse test.")
+    st.caption("Bekijk hier hoe al je PR's zich week na week ontwikkelen.")
     
-    # Maak een DataFrame van de opgeslagen PR-historie
+    # Maak één DataFrame van de opgeslagen PR-historie
     df_history = pd.DataFrame(st.session_state.pr_history)
     
-    # Toon lijndiagrammen van de voortgang
-    st.markdown("#### 💎 Repetitie Oefeningen Groei")
-    st.line_chart(data=df_history, x="Datum", y=["Pushups", "Pullups", "Pistol Squats"], color=["#FF1493", "#00FFFF", "#FFD700"])
-    
-    st.markdown("#### ⏱️ Statische Kracht Groei")
-    st.line_chart(data=df_history, x="Datum", y="Plank (sec)", color="#00FF00")
+    # NIEUW: Twee diagrammen samengevoegd in één overzichtelijk combinatiediagram
+    st.markdown("#### 📊 Gecombineerde Calisthenics Groei")
+    st.line_chart(
+        data=df_history, 
+        x="Datum", 
+        y=["Pushups", "Pullups", "Pistol Squats", "Plank (sec)"], 
+        color=["#FF1493", "#00FFFF", "#FFD700", "#00FF00"]
+    )
     
     st.markdown("---")
     st.markdown("### 🚨 Zondagse PR Test Registreren")
-    st.caption("Voer hier je nieuwe maximale scores in om je grafiek omhoog te stuwen.")
+    st.caption("Voer hier je nieuwe maximale scores in om je grafieklijnen omhoog te stuwen.")
     
     with st.form("records_form"):
         test_date = st.date_input("Datum van test", datetime.date.today())
@@ -251,13 +253,11 @@ with tab3:
         if st.form_submit_button("🔥 Nieuwe PR's Opslaan & Loggen"):
             str_date = test_date.strftime("%Y-%m-%d")
             
-            # Update huidige records voor de badges
             st.session_state.pushup_record = new_pushup
             st.session_state.pullup_record = new_pullup
             st.session_state.pistol_record = new_pistol
             st.session_state.plank_record = new_plank
             
-            # Voeg toe aan geschiedenis-lijst voor het diagram
             nieuwe_meting = {
                 "Datum": str_date,
                 "Pushups": new_pushup,
@@ -266,13 +266,11 @@ with tab3:
                 "Plank (sec)": new_plank
             }
             
-            # Als de datum al bestaat, overschrijf deze dan, anders toevoegen
             st.session_state.pr_history = [h for h in st.session_state.pr_history if h["Datum"] != str_date]
             st.session_state.pr_history.append(nieuwe_meting)
-            # Sorteer op datum zodat de lijn chronologisch loopt
             st.session_state.pr_history = sorted(st.session_state.pr_history, key=lambda x: x["Datum"])
             
-            st.success("Geweldig gewerkt! Je tijdlijn is bijgewerkt.")
+            st.success("Geweldig gewerkt! Je gecombineerde tijdlijn is bijgewerkt.")
             time.sleep(1)
             st.rerun()
 
@@ -309,7 +307,7 @@ with tab4:
 with tab5:
     st.title("🗿 Dagelijkse Routines & Tracker")
     
-    st.markdown("### 🦴 Kaaklijn & Houding")
+    st.markdown("### Bone / Kaaklijn & Houding")
     st.checkbox("Mewing / Kaaklijnoefeningen gedaan (5 min)", key="kaaklijn_gedaan")
     st.checkbox("Nek- en rughouding stretches gedaan", key="oefening_gedaan")
     
