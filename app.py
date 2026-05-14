@@ -35,12 +35,11 @@ def calculate_age(born):
     today = datetime.date.today()
     return today.year - born.year - ((today.month, today.day) < (born.month, born.day))
 
-# --- 2. AUTOMATISCHE SPIERGROEP DETECTIE (NLP LIGHT) ---
+# --- 2. AUTOMATISCHE SPIERGROEP DETECTIE ---
 def parse_exercise_muscles(exercise_text):
     text = exercise_text.lower()
     detected = {}
     
-    # Woordenboek voor trefwoord-koppelingen
     keywords = {
         "pushup": {"Borst": 1.0, "Triceps": 0.6, "Schouders": 0.4, "Core": 0.2},
         "push up": {"Borst": 1.0, "Triceps": 0.6, "Schouders": 0.4, "Core": 0.2},
@@ -59,7 +58,7 @@ def parse_exercise_muscles(exercise_text):
         "squat": {"Quadriceps": 1.0, "Hamstrings": 0.4, "Core": 0.3},
         "leg": {"Quadriceps": 0.8, "Hamstrings": 0.8},
         "lung": {"Quadriceps": 1.0, "Hamstrings": 0.5},
-        "deadlift": {"Hamstrings": 0.9, "Bovenrug": 0.7, "Core": 0.6},
+        "deadlift": {"Hamstrings": 0.9, "Bovenrug": 0.7, "Core": 0.6, "Billen": 0.8},
         "plank": {"Core": 1.0, "Schouders": 0.2},
         "crunch": {"Core": 1.0},
         "situp": {"Core": 1.0},
@@ -70,13 +69,11 @@ def parse_exercise_muscles(exercise_text):
         "raise": {"Schouders": 1.0}
     }
     
-    # Check welke spieren matchen
     for key, muscles in keywords.items():
         if key in text:
             for m, val in muscles.items():
                 detected[m] = max(detected.get(m, 0), val)
                 
-    # Fallback als er niks wordt herkend (alles een heel klein beetje voor de activiteit)
     if not detected:
         detected = {"Core": 0.2, "Borst": 0.2, "Bovenrug": 0.2}
         
@@ -202,7 +199,6 @@ tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs(["🏠 Hoofdscherm", "📸 AI Scann
 # --- TAB 1: HOOFDSCHERM ---
 with tab1:
     st.title(f"Hoi {user['name']}! 👋")
-    
     vandaag = datetime.date.today()
     if vandaag.weekday() == 6: st.error("🚨 **TESTDAG!** Het is zondag. Ga snel naar 'Voortgang'!")
     else: st.info(f"📅 Nog **{6 - vandaag.weekday()} dagen** tot de wekelijkse calisthenics-testdag (zondag).")
@@ -229,7 +225,7 @@ with tab1:
     </div>
     """, unsafe_allow_html=True)
 
-# --- TAB 2: AI maaltijd SCANNER ---
+# --- TAB 2: AI SCANNER ---
 with tab2:
     st.title("📸 AI Maaltijd Scanner")
     picture = st.camera_input("Maak een foto van je maaltijd")
@@ -260,17 +256,14 @@ with tab4:
         st.session_state.water_ml += 250
         st.rerun()
 
-# --- TAB 5: WORKOUTS & HOGE RESOLUTIE HEATMAP ---
+# --- TAB 5: WORKOUTS & ANATOMISCHE VECTOR HEATMAP ---
 with tab5:
-    st.title("🗿 Slimme Trainingslog & 2D Anatomie")
+    st.title("🗿 Anatomische Spiergroepen Tracker")
     
-    kaaklijn_chk = st.checkbox("Kaaklijntraining voltooid (Mewing / Kauwgom)", value=st.session_state.kaaklijn_gedaan, key="k_chk")
-    st.session_state.kaaklijn_gedaan = kaaklijn_chk
-
-    # Dynamische spierbelasting berekenen
+    # Initieer lege spier scores
     muscle_scores = {
         "Kaaklijn": 0, "Borst": 0, "Biceps": 0, "Triceps": 0, "Onderarmen": 0, 
-        "Schouders": 0, "Core": 0, "Bovenrug": 0, "Lats": 0, "Quadriceps": 0, "Hamstrings": 0, "Kuiten": 0
+        "Schouders": 0, "Core": 0, "Bovenrug": 0, "Lats": 0, "Billen": 0, "Quadriceps": 0, "Hamstrings": 0, "Kuiten": 0
     }
     
     for item in st.session_state.workout_log:
@@ -279,18 +272,19 @@ with tab5:
             if m_group in muscle_scores:
                 muscle_scores[m_group] += total_vol * factor
 
-    st.markdown("### 📊 Ultra-Gedetailleerde 2D Spieractivatie Kaart")
+    st.markdown("### 📊 Gedetailleerde Anatomie Heatmap")
+    st.caption("Gebaseerd op de door jou handgeschreven oefeningen hieronder.")
     
     js_data = json.dumps(muscle_scores)
     html_code = f"""
     <div style="text-align: center; background-color: #1F2937; padding: 15px; border-radius: 12px; display: flex; justify-content: space-around;">
         <div>
-            <h5 style="color: #FF1493; margin-top:0; font-family:sans-serif;">VOORKANT</h5>
-            <canvas id="frontCanvas" width="200" height="340" style="background-color:#111827; border-radius:8px;"></canvas>
+            <h5 style="color: #FF1493; margin-top:0; font-family:sans-serif; font-size:12px;">VOORKANT</h5>
+            <canvas id="frontCanvas" width="180" height="340" style="background-color:#111827; border-radius:8px;"></canvas>
         </div>
         <div>
-            <h5 style="color: #00FFFF; margin-top:0; font-family:sans-serif;">ACHTERKANT</h5>
-            <canvas id="backCanvas" width="200" height="340" style="background-color:#111827; border-radius:8px;"></canvas>
+            <h5 style="color: #00FFFF; margin-top:0; font-family:sans-serif; font-size:12px;">ACHTERKANT</h5>
+            <canvas id="backCanvas" width="180" height="340" style="background-color:#111827; border-radius:8px;"></canvas>
         </div>
     </div>
     <script>
@@ -299,104 +293,116 @@ with tab5:
         
         function c(mName) {{
             let s = scores[mName] || 0;
-            if(s===0) return '#374151';
+            if(s===0) return '#374151'; // Standaard donkergrijs uit de afbeelding
             let r = s / maxS;
-            return `rgb(${{Math.floor(220+35*r)}}, ${{Math.floor(15*(1-r))}}, ${{Math.floor(130+125*r)}})`;
+            // Kleurt op naar intens neon-roze/paars/oranje/blauw afhankelijk van de spiergroep ratio
+            return `rgb(${{Math.floor(200 + 55*r)}}, ${{Math.floor(20 * (1-r))}}, ${{Math.floor(100 + 155*r)}})`;
         }}
         
-        // --- VOORKANT (Gedetailleerd) ---
+        // --- VOORKANT TEKENEN (CURVED & ANATOMISCH) ---
         const f = document.getElementById('frontCanvas').getContext('2d');
         f.lineWidth = 1.5; f.strokeStyle = '#FFFFFF';
         
-        // Hoofd & Kaak
-        f.fillStyle = c('Kaaklijn'); f.beginPath(); f.arc(100, 30, 14, 0, Math.PI*2); f.fill(); f.stroke();
-        // Schouders (Delts)
+        // Body Outline (Subtiele achtergrondlijnen voor anatomische vorm)
+        f.beginPath(); f.arc(90, 30, 14, 0, Math.PI*2); f.stroke(); // Hoofd
+        
+        // Kaaklijn
+        f.fillStyle = c('Kaaklijn');
+        f.beginPath(); f.moveTo(80,36); f.lineTo(90,44); f.lineTo(100,36); f.closePath(); f.fill(); f.stroke();
+        
+        // Schouders (Deltoids - Organische rondingen)
         f.fillStyle = c('Schouders');
-        f.beginPath(); f.arc(63, 72, 11, 0, Math.PI*2); f.fill(); f.stroke();
-        f.beginPath(); f.arc(137, 72, 11, 0, Math.PI*2); f.fill(); f.stroke();
-        // Borst (Pecs opgesplitst links/rechts)
+        f.beginPath(); f.arc(58, 70, 11, 0, Math.PI*2); f.fill(); f.stroke();
+        f.beginPath(); f.arc(122, 70, 11, 0, Math.PI*2); f.fill(); f.stroke();
+        
+        // Borstspieren (Anatomische curves)
         f.fillStyle = c('Borst');
-        f.fillRect(72, 68, 26, 28); f.strokeRect(72, 68, 26, 28);
-        f.fillRect(102, 68, 26, 28); f.strokeRect(102, 68, 26, 28);
-        // Abs / Core (Gedetailleerde blokken)
+        f.beginPath(); f.moveTo(70,64); f.bezierCurveTo(75,60, 85,60, 89,64); f.lineTo(89,88); f.lineTo(70,88); f.closePath(); f.fill(); f.stroke();
+        f.beginPath(); f.moveTo(110,64); f.bezierCurveTo(105,60, 95,60, 91,64); f.lineTo(91,88); f.lineTo(110,88); f.closePath(); f.fill(); f.stroke();
+        
+        // Abs / Core (Zespuntsverdeling gegroepeerd)
         f.fillStyle = c('Core');
-        f.fillRect(76, 100, 48, 48); f.strokeRect(76, 100, 48, 48);
-        // Armen (Biceps)
+        f.beginPath(); f.moveTo(72,94); f.lineTo(108,94); f.lineTo(104,142); f.lineTo(76,142); f.closePath(); f.fill(); f.stroke();
+        
+        // Biceps (Spierballen anatomisch gevormd met curves)
         f.fillStyle = c('Biceps');
-        f.fillRect(48, 86, 13, 32); f.strokeRect(48, 86, 13, 32);
-        f.fillRect(139, 86, 13, 32); f.strokeRect(139, 86, 13, 32);
-        // Onderarmen (Forearms)
+        f.beginPath(); f.moveTo(46,80); f.bezierCurveTo(40,92, 42,104, 46,114); f.lineTo(54,110); f.lineTo(54,82); f.closePath(); f.fill(); f.stroke();
+        f.beginPath(); f.moveTo(134,80); f.bezierCurveTo(140,92, 138,104, 134,114); f.lineTo(126,110); f.lineTo(126,82); f.closePath(); f.fill(); f.stroke();
+        
+        # Onderarmen
         f.fillStyle = c('Onderarmen');
-        f.fillRect(45, 122, 11, 35); f.strokeRect(45, 122, 11, 35);
-        f.fillRect(144, 122, 11, 35); f.strokeRect(144, 122, 11, 35);
-        // Benen (Quadriceps)
+        f.fillRect(40,118, 11, 36); f.strokeRect(40,118, 11, 36);
+        f.fillRect(129,118, 11, 36); f.strokeRect(129,118, 11, 36);
+        
+        // Quadriceps (Dijen anatomisch gebogen)
         f.fillStyle = c('Quadriceps');
-        f.fillRect(74, 154, 22, 80); f.strokeRect(74, 154, 22, 80);
-        f.fillRect(104, 154, 22, 80); f.strokeRect(104, 154, 22, 80);
+        f.beginPath(); f.moveTo(70,150); f.lineTo(88,150); f.lineTo(84,230); f.lineTo(66,230); f.closePath(); f.fill(); f.stroke();
+        f.beginPath(); f.moveTo(110,150); f.lineTo(92,150); f.lineTo(96,230); f.lineTo(114,230); f.closePath(); f.fill(); f.stroke();
 
-        // --- ACHTERKANT (Gedetailleerd) ---
+        // --- ACHTERKANT TEKENEN (ANATOMISCH) ---
         const b = document.getElementById('backCanvas').getContext('2d');
         b.lineWidth = 1.5; b.strokeStyle = '#FFFFFF';
         
-        // Hoofd Achter
-        b.fillStyle = '#374151'; b.beginPath(); b.arc(100, 30, 14, 0, Math.PI*2); b.fill(); b.stroke();
-        // Bovenrug (Traps / Rhomboids)
+        b.beginPath(); b.arc(90, 30, 14, 0, Math.PI*2); b.stroke();
+        
+        // Bovenrug (Trapezius V-Vorm zoals de rode spier op jouw foto)
         b.fillStyle = c('Bovenrug');
-        b.fillRect(70, 65, 60, 25); b.strokeRect(70, 65, 60, 25);
-        // Lats (V-vormige rugvleugels)
+        b.beginPath(); b.moveTo(90,46); b.lineTo(66,66); b.lineTo(114,66); b.closePath(); b.fill(); b.stroke();
+        
+        // Lats (Rugvleugels links/rechts)
         b.fillStyle = c('Lats');
-        b.fillRect(72, 94, 26, 42); b.strokeRect(72, 94, 26, 42);
-        b.fillRect(102, 94, 26, 42); b.strokeRect(102, 94, 26, 42);
-        // Armen (Triceps achterkant)
+        b.beginPath(); b.moveTo(66,72); b.lineTo(88,72); b.lineTo(86,124); b.lineTo(62,106); f.closePath(); b.fill(); b.stroke();
+        b.beginPath(); b.moveTo(114,72); b.lineTo(92,72); b.lineTo(94,124); b.lineTo(118,106); f.closePath(); b.fill(); b.stroke();
+        
+        // Triceps (Achterkant armen)
         b.fillStyle = c('Triceps');
-        b.fillRect(48, 86, 13, 32); b.strokeRect(48, 86, 13, 32);
-        b.fillRect(139, 86, 13, 32); b.strokeRect(139, 86, 13, 32);
-        // Onderarmen Achter
-        b.fillStyle = c('Onderarmen');
-        b.fillRect(45, 122, 11, 35); b.strokeRect(45, 122, 11, 35);
-        b.fillRect(144, 122, 11, 35); b.strokeRect(144, 122, 11, 35);
-        // Hamstrings
+        b.fillRect(45,80, 10, 34); b.strokeRect(45,80, 10, 34);
+        b.fillRect(125,80, 10, 34); b.strokeRect(125,80, 10, 34);
+        
+        // Billen (Glutes - anatomische curves rondingen)
+        b.fillStyle = c('Billen');
+        b.beginPath(); b.arc(76, 144, 13, 0, Math.PI*2); b.fill(); b.stroke();
+        b.beginPath(); b.arc(104, 144, 13, 0, Math.PI*2); b.fill(); b.stroke();
+        
+        // Hamstrings (Achterkant bovenbenen)
         b.fillStyle = c('Hamstrings');
-        b.fillRect(74, 154, 22, 75); b.strokeRect(74, 154, 22, 75);
-        b.fillRect(104, 154, 22, 75); b.strokeRect(104, 154, 22, 75);
-        // Kuiten (Calves)
+        b.fillRect(65,162, 20, 68); b.strokeRect(65,162, 20, 68);
+        b.fillRect(95,162, 20, 68); b.strokeRect(95,162, 20, 68);
+        
+        // Kuiten (Calves - Diamantvormige spierlijnen onderbeen)
         b.fillStyle = c('Kuiten');
-        b.fillRect(75, 236, 18, 55); b.strokeRect(75, 236, 18, 55);
-        b.fillRect(107, 236, 18, 55); b.strokeRect(107, 236, 18, 55);
+        b.beginPath(); b.moveTo(74,236); b.lineTo(84,250); b.lineTo(74,280); b.lineTo(66,250); b.closePath(); b.fill(); b.stroke();
+        b.beginPath(); b.moveTo(106,236); b.lineTo(114,250); b.lineTo(106,280); b.lineTo(98,250); b.closePath(); b.fill(); b.stroke();
     </script>
     """
     html(html_code, height=365)
 
-    # --- 100% HANDMATIG WRITING-SYSTEEM ---
-    st.markdown("### ✍️ Wat heb je vandaag gedaan?")
+    # --- 100% SCHRIJFSYSTEEM ---
+    st.markdown("### ✍️ Schrijf je Oefening op")
     with st.form("custom_exercise_form"):
-        user_exercise_input = st.text_input("Schrijf hier je oefening op:", placeholder="Bijv. Heavy Dumbbell Bicep Curls of Benchpress")
+        user_exercise_input = st.text_input("Wat heb je gedaan?", placeholder="Bijv. Benchpress, Dumbbell Curls, Squats...")
         
         col1, col2 = st.columns(2)
         with col1: s_in = st.number_input("Sets", min_value=1, value=3)
         with col2: r_in = st.number_input("Reps", min_value=1, value=10)
         
-        if st.form_submit_button("Oefening Analyseren & Loggen"):
+        if st.form_submit_button("Log Oefening"):
             if user_exercise_input:
-                # Analyseer welke spieren getraind worden met de parser
                 detected_muscles = parse_exercise_muscles(user_exercise_input)
-                
-                # Sla op in de logs
                 st.session_state.workout_log.append({
                     "Oefening": user_exercise_input,
                     "Sets": s_in,
                     "Reps": r_in,
                     "Spieren": detected_muscles
                 })
-                st.success(f"Gelogd! Automatisch gedetecteerde spieractivatie: {', '.join(detected_muscles.keys())}")
-                time.sleep(0.5)
+                st.success(f"Toegevoegd! Spieren geactiveerd.")
+                time.sleep(0.4)
                 st.rerun()
 
     if st.session_state.workout_log:
-        st.markdown("##### 📋 Oefeningen van vandaag:")
+        st.markdown("##### 📋 Oefeningen Vandaag:")
         display_df = pd.DataFrame([
-            {"Oefening": i["Oefening"], "Sets": i["Sets"], "Reps": i["Reps"], "Doelwitspieren": ", ".join(i["Spieren"].keys())}
-            for i in st.session_state.workout_log
+            {"Oefening": i["Oefening"], "Sets": i["Sets"], "Reps": i["Reps"]} for i in st.session_state.workout_log
         ])
         st.dataframe(display_df, use_container_width=True)
         if st.button("Logboek Resetten"):
