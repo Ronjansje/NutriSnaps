@@ -58,6 +58,40 @@ def voorspel_spieren(oefening_naam):
     if not gevonden_spieren: return "Algemene spiergroepen"
     return ", ".join(list(set(gevonden_spieren)))
 
+# --- NIEUWE RANG LOGICA ---
+def bepaal_pushup_rang(reps):
+    if reps <= 10: return "🪵 Houten Klomp"
+    elif reps <= 25: return "🥉 IJzeren Rekruut"
+    elif reps <= 45: return "🥈 Bronzen Krijger"
+    elif reps <= 65: return "🥇 Zilveren Sloopkogel"
+    elif reps <= 85: return "💎 Diamanten Sloper"
+    elif reps <= 99: return "👑 Gouden Calisthenics Koning"
+    return "🌌 Onsterfelijke God"
+
+def bepaal_pullup_rang(reps):
+    if reps <= 2: return "🪵 Grondbezoeker"
+    elif reps <= 6: return "🥉 Zwaartekracht Trotseerder"
+    elif reps <= 12: return "🥈 Vliegende Hollander"
+    elif reps <= 18: return "🥇 Hemelbestormer"
+    elif reps <= 25: return "💎 Titanium Gorilla"
+    return "👑 Absolute Zweefmeester"
+
+def bepaal_pistol_rang(reps):
+    if reps <= 1: return "🪵 Wankele Bamboe"
+    elif reps <= 4: return "🥉 Standvastige Eik"
+    elif reps <= 8: return "🥈 Hydraulische Pers"
+    elif reps <= 14: return "🥇 Sloopkogel Been"
+    elif reps <= 20: return "💎 Marmeren Pilaar"
+    return "👑 God van de Zwaartekracht"
+
+def bepaal_plank_rang(seconds):
+    if seconds <= 30: return "🪵 Trillende Gelei"
+    elif seconds <= 60: return "🥉 Betonnen Fundering"
+    elif seconds <= 120: return "🥈 Gewapend Beton"
+    elif seconds <= 180: return "🥇 Granieten Schild"
+    elif seconds <= 300: return "💎 Onbreekbare Diamant"
+    return "👑 Tijdloze Standbeeld"
+
 # --- 2. INITIALISATIE STATE ---
 vandaag_str = datetime.date.today().strftime("%Y-%m-%d")
 
@@ -136,7 +170,7 @@ def save_to_browser():
     json_str = json.dumps(payload).replace("'", "\\'")
     html(f"<script>localStorage.setItem('nutrisnap_core_data', '{json_str}');</script>", height=0)
 
-# --- 3. BROWSER DATA SYNC ---
+# --- 3. BROWSER DATA SYNC & AUTOMATISCHE 00:00 RESET ---
 query_params = st.query_params
 if "browser_data" in query_params and not st.session_state.get("synced", False):
     try:
@@ -261,16 +295,15 @@ with tab1:
     else:
         st.markdown(f"""<div class="status-box" style="border-left-color: #FF1493;"><b style="color: #FF1493;">❌ Routine incompleet ({vinkjes_teller}/{totaal_routines})</b></div>""", unsafe_allow_html=True)
 
-    # --- HISTORISCHE RANGEN EN RECORDS (HERSTELD) ---
-    st.markdown("### 🏅 Actuele PR Rangen")
-    st.markdown(f"""<div class="badge-grid">
-        <div class="badge-box"><b>Pushups</b><br>{st.session_state.pushup_record} reps</div>
-        <div class="badge-box"><b>Pullups</b><br>{st.session_state.pullup_record} reps</div>
-        <div class="badge-box"><b>Pistols</b><br>{st.session_state.pistol_record} reps</div>
-        <div class="badge-box"><b>Plank</b><br>{st.session_state.plank_record}s</div>
-    </div>""", unsafe_allow_html=True)
-
     st.markdown(f"""<div class="fat-box"><h4 style="margin:0; color:#00FFFF;">🧬 Vetpercentage: {vetpercentage:.1f}%</h4></div>""", unsafe_allow_html=True)
+
+    st.markdown("### 🏅 Epische Calisthenics Rangen")
+    st.markdown(f"""<div class="badge-grid">
+        <div class="badge-box"><b>Opdrukken</b><br><small>{bepaal_pushup_rang(st.session_state.pushup_record)} ({st.session_state.pushup_record} reps)</small></div>
+        <div class="badge-box"><b>Optrekken</b><br><small>{bepaal_pullup_rang(st.session_state.pullup_record)} ({st.session_state.pullup_record} reps)</small></div>
+        <div class="badge-box"><b>Pistol Squats</b><br><small>{bepaal_pistol_rang(st.session_state.pistol_record)} ({st.session_state.pistol_record} reps)</small></div>
+        <div class="badge-box"><b>Plank</b><br><small>{bepaal_plank_rang(st.session_state.plank_record)} ({st.session_state.plank_record}s)</small></div>
+    </div>""", unsafe_allow_html=True)
 
 # --- TAB 2: AI SCANNER ---
 with tab2:
@@ -350,32 +383,4 @@ with tab5:
             st.success(f"Geregistreerd! Spieren: {spier_res}")
             save_to_browser(); time.sleep(1); st.rerun()
 
-    if st.session_state.oefening_log:
-        st.dataframe(pd.DataFrame(st.session_state.oefening_log), use_container_width=True, hide_index=True)
-
-# --- TAB 6: ACCOUNT ---
-with tab6:
-    st.title("⚙️ Personaliseer Je Profiel")
-    with st.form("account_form"):
-        new_name = st.text_input("Voornaam", value=user["name"])
-        try:
-            current_bdate = datetime.datetime.strptime(user["birth_date"], "%Y-%m-%d").date()
-        except:
-            current_bdate = datetime.date(2006, 1, 1)
-        new_birth = st.date_input("Geboortedatum", value=current_bdate)
-        st.info(f"💡 **Huidige berekende leeftijd:** {user['age']} jaar")
-        new_height = st.number_input("Lengte (cm)", min_value=120, max_value=230, value=int(user["height"]))
-        new_weight = st.number_input("Gewicht (kg)", min_value=40.0, max_value=180.0, value=float(user["weight"]))
-        new_target = st.number_input("Doel Gewicht (kg)", min_value=40.0, max_value=180.0, value=float(user["target_weight"]))
-        new_days = st.slider("Dagen per week sporten", 0, 7, int(user["days_train"]))
-        new_dur = st.slider("Gemiddelde duur per training (minuten)", 15, 180, int(user["duration_train"]))
-        new_neck = st.number_input("Nekomtrek (cm)", min_value=20.0, max_value=60.0, value=float(user["neck"]))
-        new_waist = st.number_input("Buikomtrek (cm)", min_value=50.0, max_value=150.0, value=float(user["waist"]))
-        
-        if st.form_submit_button("💾 Wijzigingen Opslaan"):
-            new_bdate_str = new_birth.strftime("%Y-%m-%d")
-            new_calculated_age = bereken_leeftijd(new_bdate_str)
-            st.session_state.user_db[st.session_state.current_user].update({
-                "name": new_name, "age": new_calculated_age, "birth_date": new_bdate_str,
-                "height": new_height, "weight": new_weight, "target_weight": new_target,
-                "days_train": new_days,
+    if st.session_state.oefening_
