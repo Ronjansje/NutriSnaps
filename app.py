@@ -51,9 +51,11 @@ def parse_exercise_muscles(exercise_text):
         "pull up": {"Lats": 1.0, "Bovenrug": 0.8, "Biceps": 0.5},
         "chin": {"Biceps": 1.0, "Lats": 0.8},
         "row": {"Bovenrug": 1.0, "Lats": 0.7, "Biceps": 0.5},
-        "curl": {"Biceps": 1.0},
+        "curl": {"Biceps": 1.0, "Onderarmen": 0.5},
         "bicep": {"Biceps": 1.0},
         "tricep": {"Triceps": 1.0},
+        "onderarm": {"Onderarmen": 1.0},
+        "forearm": {"Onderarmen": 1.0},
         "squat": {"Quadriceps": 1.0, "Hamstrings": 0.4, "Billen": 0.5},
         "leg": {"Quadriceps": 0.8, "Hamstrings": 0.8},
         "lung": {"Quadriceps": 1.0, "Billen": 0.6},
@@ -73,7 +75,7 @@ def parse_exercise_muscles(exercise_text):
                 detected[m] = max(detected.get(m, 0), val)
                 
     if not detected:
-        detected = {"Core": 0.2, "Borst": 0.2}
+        detected = {"Core": 0.2}
         
     return detected
 
@@ -254,15 +256,15 @@ with tab4:
         st.session_state.water_ml += 250
         st.rerun()
 
-# --- TAB 5: WORKOUTS & EXACTE VECTOR AFBEELDING OVERLAY ---
+# --- TAB 5: WORKOUTS & ANATOMISCHE VECTOR HEATMAP ---
 with tab5:
-    st.title("🗿 Anatomische Spierkaarten Tracker")
+    st.title("🗿 Anatomische Spiergroepen Tracker")
     
-    # Activeer spiergroepen
+    # Gegarandeerd overzicht van alle beschikbare groepen om KeyErrors te elimineren
     muscle_status = {
-        "Borst": False, "Biceps": False, "Triceps": False, "Schouders": False, 
-        "Core": False, "Bovenrug": False, "Lats": False, "Billen": False, 
-        "Quadriceps": False, "Hamstrings": False, "Kuiten": False
+        "Kaaklijn": False, "Borst": False, "Biceps": False, "Triceps": False, 
+        "Onderarmen": False, "Schouders": False, "Core": False, "Bovenrug": False, 
+        "Lats": False, "Billen": False, "Quadriceps": False, "Hamstrings": False, "Kuiten": False
     }
     
     for item in st.session_state.workout_log:
@@ -273,16 +275,12 @@ with tab5:
     st.markdown("### 📊 Exacte Anatomische Spierkaart")
     st.caption("Spieren lichten direct felrood op op de vector-afbeelding zodra je hieronder typt.")
     
-    # Zet status om naar JS variabelen
-    js_status = json.dumps(muscle_status)
-    
     html_code = f"""
     <div style="text-align: center; background-color: #1F2937; padding: 20px; border-radius: 12px; display: flex; justify-content: space-around;">
         <div>
             <h5 style="color: #FF1493; margin-top:0; font-family:sans-serif; font-size:12px; letter-spacing:1px;">VOORKANT</h5>
             <svg width="160" height="320" viewBox="0 0 100 200" style="background:#111827; border-radius:8px;">
-                <!-- Exacte anatomische contourlijnen conform jouw afbeelding -->
-                <path d="M50,15 C45,15 42,20 42,26 C42,32 46,35 50,35 C54,35 58,32 58,26 C58,20 55,15 50,15 Z" fill="none" stroke="#9CA3AF" stroke-width="1.2"/>
+                <path d="M50,15 C45,15 42,20 42,26 C42,32 46,35 50,35 C54,35 58,32 58,26 C58,20 55,15 50,15 Z" fill="{ '#FF0000' if muscle_status['Kaaklijn'] else '#E5E7EB' }" stroke="#9CA3AF" stroke-width="1.2"/>
                 <path id="v-nek" d="M46,34 L46,45 L54,45 L54,34 Z" fill="#E5E7EB" stroke="#9CA3AF" stroke-width="1"/>
                 
                 <!-- Borstspieren -->
