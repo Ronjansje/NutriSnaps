@@ -41,29 +41,27 @@ def parse_exercise_muscles(exercise_text):
     detected = {}
     
     keywords = {
-        "pushup": {"Borst": 1.0, "Triceps": 0.6, "Schouders": 0.4, "Core": 0.2},
-        "push up": {"Borst": 1.0, "Triceps": 0.6, "Schouders": 0.4, "Core": 0.2},
+        "pushup": {"Borst": 1.0, "Triceps": 0.6, "Schouders": 0.4},
+        "push up": {"Borst": 1.0, "Triceps": 0.6, "Schouders": 0.4},
         "bench": {"Borst": 1.0, "Triceps": 0.5, "Schouders": 0.3},
         "press": {"Borst": 0.8, "Schouders": 0.8, "Triceps": 0.4},
-        "fly": {"Borst": 1.0, "Schouders": 0.2},
+        "fly": {"Borst": 1.0},
         "dip": {"Triceps": 1.0, "Borst": 0.7, "Schouders": 0.5},
-        "pullup": {"Lats": 1.0, "Bovenrug": 0.8, "Biceps": 0.5, "Onderarmen": 0.3},
-        "pull up": {"Lats": 1.0, "Bovenrug": 0.8, "Biceps": 0.5, "Onderarmen": 0.3},
-        "chin": {"Biceps": 1.0, "Lats": 0.8, "Bovenrug": 0.4, "Onderarmen": 0.4},
-        "row": {"Bovenrug": 1.0, "Lats": 0.7, "Biceps": 0.5, "Onderarmen": 0.3},
-        "curl": {"Biceps": 1.0, "Onderarmen": 0.4},
+        "pullup": {"Lats": 1.0, "Bovenrug": 0.8, "Biceps": 0.5},
+        "pull up": {"Lats": 1.0, "Bovenrug": 0.8, "Biceps": 0.5},
+        "chin": {"Biceps": 1.0, "Lats": 0.8},
+        "row": {"Bovenrug": 1.0, "Lats": 0.7, "Biceps": 0.5},
+        "curl": {"Biceps": 1.0},
         "bicep": {"Biceps": 1.0},
         "tricep": {"Triceps": 1.0},
-        "extension": {"Triceps": 1.0},
-        "squat": {"Quadriceps": 1.0, "Hamstrings": 0.4, "Core": 0.3},
+        "squat": {"Quadriceps": 1.0, "Hamstrings": 0.4, "Billen": 0.5},
         "leg": {"Quadriceps": 0.8, "Hamstrings": 0.8},
-        "lung": {"Quadriceps": 1.0, "Hamstrings": 0.5},
-        "deadlift": {"Hamstrings": 0.9, "Bovenrug": 0.7, "Core": 0.6, "Billen": 0.8},
-        "plank": {"Core": 1.0, "Schouders": 0.2},
+        "lung": {"Quadriceps": 1.0, "Billen": 0.6},
+        "deadlift": {"Hamstrings": 0.9, "Bovenrug": 0.7, "Billen": 0.8},
+        "plank": {"Core": 1.0},
         "crunch": {"Core": 1.0},
         "situp": {"Core": 1.0},
         "mew": {"Kaaklijn": 1.0},
-        "kauw": {"Kaaklijn": 1.0},
         "calf": {"Kuiten": 1.0},
         "kuit": {"Kuiten": 1.0},
         "raise": {"Schouders": 1.0}
@@ -75,7 +73,7 @@ def parse_exercise_muscles(exercise_text):
                 detected[m] = max(detected.get(m, 0), val)
                 
     if not detected:
-        detected = {"Core": 0.2, "Borst": 0.2, "Bovenrug": 0.2}
+        detected = {"Core": 0.2, "Borst": 0.2}
         
     return detected
 
@@ -256,124 +254,98 @@ with tab4:
         st.session_state.water_ml += 250
         st.rerun()
 
-# --- TAB 5: WORKOUTS & DYNAMISCHE VEKTOR HEATMAP ---
+# --- TAB 5: WORKOUTS & EXACTE VECTOR AFBEELDING OVERLAY ---
 with tab5:
-    st.title("🗿 Anatomische Spiergroepen Tracker")
+    st.title("🗿 Anatomische Spierkaarten Tracker")
     
-    muscle_scores = {
-        "Kaaklijn": 0, "Borst": 0, "Biceps": 0, "Triceps": 0, "Onderarmen": 0, 
-        "Schouders": 0, "Core": 0, "Bovenrug": 0, "Lats": 0, "Billen": 0, "Quadriceps": 0, "Hamstrings": 0, "Kuiten": 0
+    # Activeer spiergroepen
+    muscle_status = {
+        "Borst": False, "Biceps": False, "Triceps": False, "Schouders": False, 
+        "Core": False, "Bovenrug": False, "Lats": False, "Billen": False, 
+        "Quadriceps": False, "Hamstrings": False, "Kuiten": False
     }
     
     for item in st.session_state.workout_log:
-        total_vol = item["Sets"] * item["Reps"]
-        for m_group, factor in item["Spieren"].items():
-            if m_group in muscle_scores:
-                muscle_scores[m_group] += total_vol * factor
+        for m_group in item["Spieren"].keys():
+            if m_group in muscle_status:
+                muscle_status[m_group] = True
 
-    st.markdown("### 📊 Realistische Anatomische Vector Heatmap")
-    st.caption("Gebaseerd op organische curven en lijnen conform het medische spierplaatje.")
+    st.markdown("### 📊 Exacte Anatomische Spierkaart")
+    st.caption("Spieren lichten direct felrood op op de vector-afbeelding zodra je hieronder typt.")
     
-    js_data = json.dumps(muscle_scores)
+    # Zet status om naar JS variabelen
+    js_status = json.dumps(muscle_status)
+    
     html_code = f"""
-    <div style="text-align: center; background-color: #1F2937; padding: 15px; border-radius: 12px; display: flex; justify-content: space-around;">
+    <div style="text-align: center; background-color: #1F2937; padding: 20px; border-radius: 12px; display: flex; justify-content: space-around;">
         <div>
-            <h5 style="color: #FF1493; margin-top:0; font-family:sans-serif; font-size:12px;">VOORKANT</h5>
-            <canvas id="frontCanvas" width="180" height="340" style="background-color:#111827; border-radius:8px;"></canvas>
+            <h5 style="color: #FF1493; margin-top:0; font-family:sans-serif; font-size:12px; letter-spacing:1px;">VOORKANT</h5>
+            <svg width="160" height="320" viewBox="0 0 100 200" style="background:#111827; border-radius:8px;">
+                <!-- Exacte anatomische contourlijnen conform jouw afbeelding -->
+                <path d="M50,15 C45,15 42,20 42,26 C42,32 46,35 50,35 C54,35 58,32 58,26 C58,20 55,15 50,15 Z" fill="none" stroke="#9CA3AF" stroke-width="1.2"/>
+                <path id="v-nek" d="M46,34 L46,45 L54,45 L54,34 Z" fill="#E5E7EB" stroke="#9CA3AF" stroke-width="1"/>
+                
+                <!-- Borstspieren -->
+                <path id="v-borst-l" d="M32,46 C38,45 48,45 49,46 L49,66 L30,64 Z" fill="{ '#FF0000' if muscle_status['Borst'] else '#E5E7EB' }" stroke="#9CA3AF" stroke-width="1"/>
+                <path id="v-borst-r" d="M68,46 C62,45 52,45 51,46 L51,66 L70,64 Z" fill="{ '#FF0000' if muscle_status['Borst'] else '#E5E7EB' }" stroke="#9CA3AF" stroke-width="1"/>
+                
+                <!-- Abs / Core -->
+                <path id="v-core" d="M34,68 L66,68 L62,110 L38,110 Z" fill="{ '#FF0000' if muscle_status['Core'] else '#E5E7EB' }" stroke="#9CA3AF" stroke-width="1"/>
+                
+                <!-- Schouders -->
+                <path id="v-schouder-l" d="M30,46 C24,46 22,54 24,60 C26,66 31,64 32,60 Z" fill="{ '#FF0000' if muscle_status['Schouders'] else '#E5E7EB' }" stroke="#9CA3AF" stroke-width="1"/>
+                <path id="v-schouder-r" d="M70,46 C76,46 78,54 76,60 C74,66 69,64 68,60 Z" fill="{ '#FF0000' if muscle_status['Schouders'] else '#E5E7EB' }" stroke="#9CA3AF" stroke-width="1"/>
+                
+                <!-- Biceps -->
+                <path id="v-biceps-l" d="M22,62 C16,74 18,88 22,96 L29,92 L28,64 Z" fill="{ '#FF0000' if muscle_status['Biceps'] else '#E5E7EB' }" stroke="#9CA3AF" stroke-width="1"/>
+                <path id="v-biceps-r" d="M78,62 C84,74 82,88 78,96 L71,92 L72,64 Z" fill="{ '#FF0000' if muscle_status['Biceps'] else '#E5E7EB' }" stroke="#9CA3AF" stroke-width="1"/>
+                
+                <!-- Onderarmen -->
+                <path id="v-onderarm-l" d="M19,98 L24,136 L30,132 L26,96 Z" fill="{ '#FF0000' if muscle_status['Onderarmen'] else '#E5E7EB' }" stroke="#9CA3AF" stroke-width="1"/>
+                <path id="v-onderarm-r" d="M81,98 L76,136 L70,132 L74,96 Z" fill="{ '#FF0000' if muscle_status['Onderarmen'] else '#E5E7EB' }" stroke="#9CA3AF" stroke-width="1"/>
+                
+                <!-- Quadriceps -->
+                <path id="v-quads-l" d="M34,112 L49,112 L46,170 L30,165 Z" fill="{ '#FF0000' if muscle_status['Quadriceps'] else '#E5E7EB' }" stroke="#9CA3AF" stroke-width="1"/>
+                <path id="v-quads-r" d="M66,112 L51,112 L54,170 L70,165 Z" fill="{ '#FF0000' if muscle_status['Quadriceps'] else '#E5E7EB' }" stroke="#9CA3AF" stroke-width="1"/>
+            </svg>
         </div>
         <div>
-            <h5 style="color: #00FFFF; margin-top:0; font-family:sans-serif; font-size:12px;">ACHTERKANT</h5>
-            <canvas id="backCanvas" width="180" height="340" style="background-color:#111827; border-radius:8px;"></canvas>
+            <h5 style="color: #00FFFF; margin-top:0; font-family:sans-serif; font-size:12px; letter-spacing:1px;">ACHTERKANT</h5>
+            <svg width="160" height="320" viewBox="0 0 100 200" style="background:#111827; border-radius:8px;">
+                <path d="M50,15 C45,15 42,20 42,26 C42,32 46,35 50,35 C54,35 58,32 58,26 C58,20 55,15 50,15 Z" fill="#E5E7EB" stroke="#9CA3AF" stroke-width="1.2"/>
+                
+                <!-- Bovenrug (Trapezius V-Shape) -->
+                <path id="a-bovenrug" d="M50,42 L30,55 L70,55 Z" fill="{ '#FF0000' if muscle_status['Bovenrug'] else '#E5E7EB' }" stroke="#9CA3AF" stroke-width="1"/>
+                
+                <!-- Lats -->
+                <path id="a-lats-l" d="M30,58 L49,58 L47,94 L32,84 Z" fill="{ '#FF0000' if muscle_status['Lats'] else '#E5E7EB' }" stroke="#9CA3AF" stroke-width="1"/>
+                <path id="a-lats-r" d="M70,58 L51,58 L53,94 L68,84 Z" fill="{ '#FF0000' if muscle_status['Lats'] else '#E5E7EB' }" stroke="#9CA3AF" stroke-width="1"/>
+                
+                <!-- Triceps -->
+                <path id="a-triceps-l" d="M22,62 L28,64 L26,94 L20,92 Z" fill="{ '#FF0000' if muscle_status['Triceps'] else '#E5E7EB' }" stroke="#9CA3AF" stroke-width="1"/>
+                <path id="a-triceps-r" d="M78,62 L72,64 L74,94 L80,92 Z" fill="{ '#FF0000' if muscle_status['Triceps'] else '#E5E7EB' }" stroke="#9CA3AF" stroke-width="1"/>
+                
+                <!-- Glutes / Billen -->
+                <path id="a-billen-l" d="M34,108 C34,96 48,96 49,112 L35,124 Z" fill="{ '#FF0000' if muscle_status['Billen'] else '#E5E7EB' }" stroke="#9CA3AF" stroke-width="1"/>
+                <path id="a-billen-r" d="M66,108 C66,96 52,96 51,112 L65,124 Z" fill="{ '#FF0000' if muscle_status['Billen'] else '#E5E7EB' }" stroke="#9CA3AF" stroke-width="1"/>
+                
+                <!-- Hamstrings -->
+                <path id="a-hamstrings-l" d="M31,126 L49,126 L46,168 L32,168 Z" fill="{ '#FF0000' if muscle_status['Hamstrings'] else '#E5E7EB' }" stroke="#9CA3AF" stroke-width="1"/>
+                <path id="a-hamstrings-r" d="M69,126 L51,126 L54,168 L68,168 Z" fill="{ '#FF0000' if muscle_status['Hamstrings'] else '#E5E7EB' }" stroke="#9CA3AF" stroke-width="1"/>
+                
+                <!-- Kuiten -->
+                <path id="a-kuiten-l" d="M34,174 L46,174 L44,194 L36,194 Z" fill="{ '#FF0000' if muscle_status['Kuiten'] else '#E5E7EB' }" stroke="#9CA3AF" stroke-width="1"/>
+                <path id="a-kuiten-r" d="M66,174 L54,174 L56,194 L64,194 Z" fill="{ '#FF0000' if muscle_status['Kuiten'] else '#E5E7EB' }" stroke="#9CA3AF" stroke-width="1"/>
+            </svg>
         </div>
     </div>
-    <script>
-        const scores = {js_data};
-        let maxS = 0; for(let m in scores) {{ if(scores[m]>maxS) maxS=scores[m]; }}
-        
-        function c(mName) {{
-            let s = scores[mName] || 0;
-            if(s===0) return '#D1D5DB'; // Lichtgrijs conform de achtergrond van de afbeelding
-            return '#E63946'; // Strikt rood oplichten conform het plaatje
-        }}
-        
-        // --- VOORKANT (REALISTISCHE CURVES) ---
-        const f = document.getElementById('frontCanvas').getContext('2d');
-        f.lineWidth = 1.2; f.strokeStyle = '#4B5563';
-        
-        // Hoofd, nek, trapezius outline
-        f.beginPath(); f.arc(90, 32, 11, 0, Math.PI*2); f.stroke();
-        
-        // Borst (Bezier Curves links en rechts)
-        f.fillStyle = c('Borst');
-        f.beginPath(); f.moveTo(90,62); f.bezierCurveTo(80,55, 66,60, 66,74); f.bezierCurveTo(66,86, 80,90, 90,85); f.closePath(); f.fill(); f.stroke();
-        f.beginPath(); f.moveTo(90,62); f.bezierCurveTo(100,55, 114,60, 114,74); f.bezierCurveTo(114,86, 100,90, 90,85); f.closePath(); f.fill(); f.stroke();
-        
-        // Schouders (Gecurvde Delts)
-        f.fillStyle = c('Schouders');
-        f.beginPath(); f.moveTo(64,62); f.bezierCurveTo(52,64, 50,78, 60,84); f.bezierCurveTo(64,80, 64,66, 64,62); f.fill(); f.stroke();
-        f.beginPath(); f.moveTo(116,62); f.bezierCurveTo(128,64, 130,78, 120,84); f.bezierCurveTo(116,80, 116,66, 116,62); f.fill(); f.stroke();
-        
-        // Biceps (Druppelvormige organische spierballen)
-        f.fillStyle = c('Biceps');
-        f.beginPath(); f.moveTo(56,86); f.bezierCurveTo(46,94, 48,112, 56,116); f.closePath(); f.fill(); f.stroke();
-        f.beginPath(); f.moveTo(124,86); f.bezierCurveTo(134,94, 132,112, 124,116); f.closePath(); f.fill(); f.stroke();
-        
-        // Core / Abs (Gegolfde anatomische buikwand)
-        f.fillStyle = c('Core');
-        f.beginPath(); f.moveTo(74,90); f.lineTo(106,90); f.bezierCurveTo(104,112, 102,130, 98,142); f.lineTo(82,142); f.bezierCurveTo(78,130, 76,112, 74,90); f.closePath(); f.fill(); f.stroke();
-        
-        // Onderarmen
-        f.fillStyle = c('Onderarmen');
-        f.beginPath(); f.moveTo(54,118); f.bezierCurveTo(46,126, 48,146, 52,154); f.closePath(); f.fill(); f.stroke();
-        f.beginPath(); f.moveTo(126,118); f.bezierCurveTo(134,126, 132,146, 128,154); f.closePath(); f.fill(); f.stroke();
-        
-        // Quadriceps (Anatomisch gedetailleerde dijen)
-        f.fillStyle = c('Quadriceps');
-        f.beginPath(); f.moveTo(72,146); f.bezierCurveTo(62,170, 64,210, 76,234); f.bezierCurveTo(84,210, 84,170, 72,146); f.closePath(); f.fill(); f.stroke();
-        f.beginPath(); f.moveTo(108,146); f.bezierCurveTo(118,170, 116,210, 104,234); f.bezierCurveTo(96,210, 96,170, 108,146); f.closePath(); f.fill(); f.stroke();
-
-        // --- ACHTERKANT (REALISTISCHE CURVES) ---
-        const b = document.getElementById('backCanvas').getContext('2d');
-        b.lineWidth = 1.2; b.strokeStyle = '#4B5563';
-        
-        b.beginPath(); b.arc(90, 32, 11, 0, Math.PI*2); b.stroke();
-        
-        // Bovenrug (Trapezius diamantvorm)
-        b.fillStyle = c('Bovenrug');
-        b.beginPath(); b.moveTo(90,46); b.lineTo(72,66); b.lineTo(90,84); b.lineTo(108,66); b.closePath(); b.fill(); b.stroke();
-        
-        // Lats (Rugvleugels organisch naar binnen buigend)
-        b.fillStyle = c('Lats');
-        b.beginPath(); b.moveTo(70,72); b.bezierCurveTo(62,90, 66,114, 82,122); b.lineTo(82,72); b.closePath(); b.fill(); b.stroke();
-        b.beginPath(); b.moveTo(110,72); b.bezierCurveTo(118,90, 114,114, 98,122); b.lineTo(98,72); b.closePath(); b.fill(); b.stroke();
-        
-        // Triceps
-        b.fillStyle = c('Triceps');
-        b.beginPath(); b.moveTo(56,84); f.bezierCurveTo(48,92, 48,110, 56,114); b.closePath(); b.fill(); b.stroke();
-        b.beginPath(); b.moveTo(124,84); f.bezierCurveTo(132,92, 132,110, 124,114); b.closePath(); b.fill(); b.stroke();
-        
-        // Billen (Ronde glutes contouren)
-        b.fillStyle = c('Billen');
-        b.beginPath(); b.arc(77, 148, 12, 0, Math.PI*2); b.fill(); b.stroke();
-        b.beginPath(); b.arc(103, 148, 12, 0, Math.PI*2); b.fill(); b.stroke();
-        
-        // Hamstrings (Gestroomlijnd verloop)
-        b.fillStyle = c('Hamstrings');
-        b.beginPath(); b.moveTo(66,164); b.bezierCurveTo(62,190, 66,220, 78,234); b.lineTo(84,164); b.closePath(); b.fill(); b.stroke();
-        b.beginPath(); b.moveTo(114,164); b.bezierCurveTo(118,190, 114,220, 102,234); b.lineTo(96,164); b.closePath(); b.fill(); b.stroke();
-        
-        // Kuiten (Geprononceerde diamant-ovale spierbuiken)
-        b.fillStyle = c('Kuiten');
-        b.beginPath(); b.moveTo(76,242); b.bezierCurveTo(64,256, 68,284, 76,296); b.bezierCurveTo(82,284, 82,256, 76,242); b.closePath(); b.fill(); b.stroke();
-        b.beginPath(); b.moveTo(104,242); b.bezierCurveTo(116,256, 112,284, 104,296); b.bezierCurveTo(98,284, 98,256, 104,242); b.closePath(); b.fill(); b.stroke();
-    </script>
     """
     html(html_code, height=365)
 
     # --- 100% SCHRIJFSYSTEEM ---
     st.markdown("### ✍️ Schrijf je Oefening op")
     with st.form("custom_exercise_form"):
-        user_exercise_input = st.text_input("Wat heb je gedaan?", placeholder="Bijv. Benchpress, Dumbbell Curls, Squats...")
+        user_exercise_input = st.text_input("Wat heb je gedaan?", placeholder="Bijv. Benchpress, Curls, Squats, Pullups...")
         
         col1, col2 = st.columns(2)
         with col1: s_in = st.number_input("Sets", min_value=1, value=3)
@@ -388,7 +360,7 @@ with tab5:
                     "Reps": r_in,
                     "Spieren": detected_muscles
                 })
-                st.success(f"Toegevoegd! Spieren geactiveerd.")
+                st.success(f"Toegevoegd! De bijbehorende vector-spieren zijn nu felrood.")
                 time.sleep(0.4)
                 st.rerun()
 
