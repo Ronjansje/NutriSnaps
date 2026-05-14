@@ -37,9 +37,13 @@ st.markdown("""
 def make_hashes(password):
     return hashlib.sha256(str.encode(password)).hexdigest()
 
-# --- 2. BROWSER STORAGE INITIALISATIE ---
-if "user_db" not in st.session_state:
-    st.session_state.user_db = {}
+def bereken_leeftijd(geboortedatum):
+    vandaag = datetime.date.today()
+    return vandaag.year - geboortedatum.year - ((vandaag.month, vandaag.day) < (geboortedatum.month, geboortedatum.day))
+
+# --- 2. LOKALE OPSLAG INITIALISATIE ---
+if "user_db" not in st.session_state: st.session_state.user_db = {}
+if "workout_history" not in st.session_state: st.session_state.workout_history = {}
 
 # --- 3. TRACKING INITIALISATIE ---
 if "logged_in" not in st.session_state: st.session_state.logged_in = False
@@ -48,26 +52,24 @@ if "water_ml" not in st.session_state: st.session_state.water_ml = 0
 if "kcal_gegeten" not in st.session_state: st.session_state.kcal_gegeten = 0
 if "eiwit_gegeten" not in st.session_state: st.session_state.eiwit_gegeten = 0
 if "kaaklijn_gedaan" not in st.session_state: st.session_state.kaaklijn_gedaan = False
-if "oefening_gedaan" not in st.session_state: st.session_state.oefening_gedaan = False
 
 if "pushup_record" not in st.session_state: st.session_state.pushup_record = 0
 if "pullup_record" not in st.session_state: st.session_state.pullup_record = 0
 if "pistol_record" not in st.session_state: st.session_state.pistol_record = 0
 if "plank_record" not in st.session_state: st.session_state.plank_record = 0
-if "workout_history" not in st.session_state: st.session_state.workout_history = {}
 
 # --- 4. INLOG / REGISTRATIE SCHERM ---
 if not st.session_state.logged_in:
     st.title("📸 NutriSnap AI")
-    st.caption("Je account wordt nu lokaal opgeslagen op dit toestel")
+    st.caption("🔒 Lokale Modus: Je account wordt in de browser-sessie bewaard")
         
     auth_option = st.radio("Kies een optie:", ["Inloggen", "Account Aanmaken"], horizontal=True)
-    email_input = st.text_input("E-mailadres")
+    email_input = st.text_input("E-mailadres").strip().lower()
     password_input = st.text_input("Wachtwoord", type="password")
     
     if auth_option == "Account Aanmaken":
         name = st.text_input("Voornaam")
-        age = st.number_input("Leeftijd", min_value=12, max_value=100, value=20)
+        birthday = st.date_input("Geboortedatum", min_value=datetime.date(1930, 1, 1), max_value=datetime.date.today(), value=datetime.date(2006, 1, 1))
         height = st.number_input("Lengte (cm)", min_value=120, max_value=230, value=180)
         weight = st.number_input("Huidig Gewicht (kg)", min_value=40.0, max_value=180.0, value=80.0)
         target_weight = st.number_input("Doel Gewicht (kg)", min_value=40.0, max_value=180.0, value=75.0)
@@ -80,14 +82,16 @@ if not st.session_state.logged_in:
         
         if st.button("Registreren"):
             if "@" in email_input and password_input and name:
-                account_data = {
-                    "password": make_hashes(password_input), "name": name, "age": age,
-                    "height": height, "weight": weight, "target_weight": target_weight,
-                    "days_train": days_train, "duration_train": duration_train,
-                    "neck": neck_in, "waist": waist_in
-                }
-                st.session_state.user_db[email_input] = account_data
-                st.success("Account succesvol aangemaakt! Je kunt nu direct inloggen.")
+                if email_input in st.session_state.user_db:
+                    st.error("Dit e-mailadres bestaat al.")
+                else:
+                    st.session_state.user_db[email_input] = {
+                        "password": make_hashes(password_input), "name": name, "birthday": birthday,
+                        "height": height, "weight": weight, "target_weight": target_weight,
+                        "days_train": days_train, "duration_train": duration_train,
+                        "neck": neck_in, "waist": waist_in
+                    }
+                    st.success("Account succesvol aangemaakt! Je kunt nu direct inloggen.")
             else:
                 st.error("Vul alle velden correct in.")
                 
@@ -101,7 +105,7 @@ if not st.session_state.logged_in:
             else:
                 if email_input and password_input:
                     st.session_state.user_db[email_input] = {
-                        "password": hashed_pwd, "name": "Gebruiker", "age": 20, "height": 180, "weight": 80,
+                        "password": hashed_pwd, "name": "Gebruiker", "birthday": datetime.date(2006, 1, 1), "height": 180, "weight": 80,
                         "target_weight": 75, "days_train": 3, "duration_train": 60, "neck": 38, "waist": 85
                     }
                     st.session_state.logged_in = True
@@ -114,7 +118,10 @@ if not st.session_state.logged_in:
 # --- 5. HOOFDAPPLICATIE BEREKENINGEN ---
 user = st.session_state.user_db[st.session_state.current_user]
 
-bmr = (10 * user["weight"]) + (6.25 * user["height"]) - (5 * user["age"]) + 5
+# Bereken leeftijd dynamisch op basis van opgeslagen geboortedatum
+u_age = bereken_leeftijd(user["birthday"]) if "birthday" in user else 20
+
+bmr = (10 * user["weight"]) + (6.25 * user["height"]) - (5 * u_age) + 5
 activity = 1.2 if user["days_train"] <= 1 else 1.375 if user["days_train"] <= 3 else 1.55 if user["days_train"] <= 5 else 1.725
 extra_kcal = (user["duration_train"] * 6 * user["days_train"]) / 7
 afval_kcal = int((bmr * activity) + extra_kcal - 500)
@@ -132,7 +139,7 @@ except Exception:
     vet_te_verliezen = 0.0
 
 st.sidebar.title("✨ NutriSnap Pro")
-st.sidebar.markdown(f"Ingelogd als: **{user['name']}**")
+st.sidebar.markdown(f"Ingelogd als: **{user['name']}** ({u_age} jaar)")
 st.sidebar.markdown(f"""
 📋 **Jouw Dagelijkse Doelen:**
 * 🔥 **Calorieën:** `{afval_kcal} kcal`
@@ -145,7 +152,8 @@ if st.sidebar.button("Uitloggen"):
     st.session_state.current_user = ""
     st.rerun()
 
-tab1, tab2, tab3, tab4, tab5 = st.tabs(["🏠 Hoofdscherm", "📸 AI Scanner", "📈 Voortgang", "💧 Water & Eten", "🗿 Oefeningen"])
+# Tabs inclusief het nieuwe Profiel tabblad
+tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs(["🏠 Hoofdscherm", "📸 AI Scanner", "📈 Voortgang", "💧 Water & Eten", "🗿 Oefeningen", "⚙️ Profiel"])
 
 # --- TAB 1: HOOFDSCHERM ---
 with tab1:
@@ -254,48 +262,50 @@ with tab4:
         st.success("Succesvol toegevoegd!")
         st.rerun()
 
-# --- TAB 5: OEFENINGEN (INCLUSIEF SPIERKAART & GRAPH) ---
+# --- TAB 5: OEFENINGEN & SPIERVOLG SYSTEEM ---
 with tab5:
     st.title("🗿 Oefeningen & Volgspier Systeem")
     st.caption("Typ je training in. De app berekent je impact en toont live welke spieren geactiveerd zijn.")
 
-    user_workout_input = st.text_area("Wat heb je getraind?", placeholder="Bijv: Ik heb zware pushups gedaan en geplankt...")
+    user_workout_input = st.text_area("Wat heb je vandaag getraind?", placeholder="Bijv: Ik heb 4 sets pushups gedaan en geplankt...")
+
+    if st.session_state.current_user not in st.session_state.workout_history:
+        st.session_state.workout_history[st.session_state.current_user] = {}
 
     if st.button("Analyseer & Sla Op"):
         if user_workout_input:
             input_lower = user_workout_input.lower()
             spieren_gedetecteerd = []
             
-            # AI Trefwoorden Logica
-            if any(x in input_lower for x in ["push", "borst", "chest", "bench"]):
+            if any(x in input_lower for x in ["push", "borst", "chest", "bench", "drukken"]):
                 spieren_gedetecteerd.append("Borst")
                 spieren_gedetecteerd.append("Triceps")
-            if any(x in input_lower for x in ["pull", "rug", "back", "row"]):
+            if any(x in input_lower for x in ["pull", "rug", "back", "row", "optrekken"]):
                 spieren_gedetecteerd.append("Rug")
                 spieren_gedetecteerd.append("Biceps")
-            if any(x in input_lower for x in ["squat", "benen", "legs", "pistol"]):
+            if any(x in input_lower for x in ["squat", "benen", "legs", "pistol", "lunges"]):
                 spieren_gedetecteerd.append("Benen")
-            if any(x in input_lower for x in ["plank", "buik", "abs", "core"]):
+            if any(x in input_lower for x in ["plank", "buik", "abs", "core", "raises"]):
                 spieren_gedetecteerd.append("Buikspieren")
 
             if not spieren_gedetecteerd:
                 spieren_gedetecteerd.append("Core")
 
             vandaag_str = str(datetime.date.today())
-            st.session_state.workout_history[vandaag_str] = {
+            st.session_state.workout_history[st.session_state.current_user][vandaag_str] = {
                 "input": user_workout_input,
                 "spieren": spieren_gedetecteerd
             }
             st.success("Training succesvol verwerkt!")
+            time.sleep(0.5)
             st.rerun()
 
-    # Bepaal actieve spieren van vandaag voor de 2D-kaart
-    vandaag_str = str(datetime.date.today())
+    user_history = st.session_state.workout_history[st.session_state.current_user]
     actieve_spieren_vandaag = []
-    if vandaag_str in st.session_state.workout_history:
-        actieve_spieren_vandaag = st.session_state.workout_history[vandaag_str]["spieren"]
+    
+    if vandaag_str in user_history:
+        actieve_spieren_vandaag = user_history[vandaag_str]["spieren"]
 
-    # 1. VISUELE INTERACTIEVE ANATOMISCHE SPIERKAART (2D CSS-Rendering)
     st.markdown("### 🎯 Live Anatomische Spierkaart")
     
     c_borst = "muscle-active" if "Borst" in actieve_spieren_vandaag else "muscle-passive"
@@ -318,34 +328,70 @@ with tab5:
             <div class="body-label">Achterkant</div>
             <div class="muscle-part {c_rug}">Rug</div>
             <div class="muscle-part {c_triceps}">Triceps</div>
-            <div class="muscle-part {c_passive:='muscle-passive'}">Billen</div>
+            <div class="muscle-part 'muscle-passive'">Billen</div>
             <div class="muscle-part {c_benen}">Hamstrings</div>
         </div>
     </div>
     """, unsafe_allow_html=True)
 
-    # 2. WEKELIJKSE VOORTGANGSGRAFIEK
-    st.markdown("### 📊 Spiergroep Volume (Afgelopen 7 Dagen)")
-    
-    # Genereer dummy/historische data op basis van het logboek voor een stabiele grafiek
+    st.markdown("### 📊 Spiergroep Volume Overzicht")
     spier_statistieken = {"Borst": 0, "Rug": 0, "Biceps": 0, "Triceps": 0, "Buikspieren": 0, "Benen": 0}
     
-    # Tel volumes uit de geschiedenis op
-    for dag, data in st.session_state.workout_history.items():
+    for dag, data in user_history.items():
         for spier in data["spieren"]:
             if spier in spier_statistieken:
-                spier_statistieken[spier] += 3 # 3 sets per detectie standaard
+                spier_statistieken[spier] += 3
 
-    df_chart = pd.DataFrame(list(spier_statistieken.items()), columns=["Spiergroep", "Geschatte Sets"])
-    st.bar_chart(data=df_chart, x="Spiergroep", y="Geschatte Sets", color="#00FFFF")
+    df_chart = pd.DataFrame(list(spier_statistieken.items()), columns=["Spiergroep", "Totaal Aantal Sets"])
+    st.bar_chart(data=df_chart, x="Spiergroep", y="Totaal Aantal Sets", color="#00FFFF")
 
-    # --- HISTORIE ---
     st.markdown("---")
     st.subheader("📅 Trainingshistorie")
-    if st.session_state.workout_history:
-        for datum, data in sorted(st.session_state.workout_history.items(), reverse=True):
-            st.text(f"🗓️ {datum}: {data['input']} (Geraakt: {', '.join(data['spieren'])})")
+    if user_history:
+        for datum, data in sorted(user_history.items(), reverse=True):
+            with st.expander(f"🗓️ {datum} — Getraind: {', '.join(data['spieren'])}"):
+                st.write(f"**Invoer:** *{data['input']}*")
     else:
         st.caption("Nog geen trainingen opgeslagen.")
 
+# --- TAB 6: PROFIEL AANPASSEN (NIEUW) ---
+with tab6:
+    st.title("⚙️ Mijn Account & Instellingen")
+    st.caption("Pas hier je persoonlijke gegevens en fysieke doelen aan.")
+    
+    with st.form("update_profile_form"):
+        new_name = st.text_input("Voornaam", value=user["name"])
+        
+        # Geboortedatum ophalen of instellen op default als deze ontbreekt
+        saved_birthday = user.get("birthday", datetime.date(2006, 1, 1))
+        new_birthday = st.date_input("Geboortedatum", min_value=datetime.date(1930, 1, 1), max_value=datetime.date.today(), value=saved_birthday)
+        
+        new_height = st.number_input("Lengte (cm)", min_value=120, max_value=230, value=int(user["height"]))
+        new_weight = st.number_input("Huidig Gewicht (kg)", min_value=40.0, max_value=180.0, value=float(user["weight"]))
+        new_target_weight = st.number_input("Doel Gewicht (kg)", min_value=40.0, max_value=180.0, value=float(user["target_weight"]))
+        
+        new_days = st.slider("Aantal dagen per week sporten", 0, 7, value=int(user["days_train"]))
+        new_duration = st.slider("Gemiddelde duur per training (minuten)", 15, 180, value=int(user["duration_train"]))
+        
+        st.markdown("##### 📏 Omtrekmaten Updaten:")
+        new_neck = st.number_input("Nekomtrek (cm)", min_value=20.0, max_value=60.0, value=float(user["neck"]))
+        new_waist = st.number_input("Buikomtrek (cm)", min_value=50.0, max_value=150.0, value=float(user["waist"]))
+        
+        submit_button = st.form_submit_button("Profiel Opslaan")
+        
+        if submit_button:
+            st.session_state.user_db[st.session_state.current_user].update({
+                "name": new_name,
+                "birthday": new_birthday,
+                "height": new_height,
+                "weight": new_weight,
+                "target_weight": new_target_weight,
+                "days_train": new_days,
+                "duration_train": new_duration,
+                "neck": new_neck,
+                "waist": new_waist
+            })
+            st.success("Je profiel is succesvol bijgewerkt!")
+            time.sleep(0.5)
+            st.rerun()
 
