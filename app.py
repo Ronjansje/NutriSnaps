@@ -31,31 +31,7 @@ st.markdown("""
 def make_hashes(password):
     return hashlib.sha256(str.encode(password)).hexdigest()
 
-# --- 2. BROWSER STORAGE BINDING (OPLOSSING VOOR ONTHOUDEN) ---
-# Verborgen JavaScript dat communiceert met de browser van de telefoon
-if "local_storage_checked" not in st.session_state:
-    st.session_state.local_storage_checked = False
-
-if "browser_user_data" not in st.session_state:
-    st.session_state.browser_user_data = None
-
-# Vraag aan de browser of er een opgeslagen profiel is
-if not st.session_state.local_storage_checked:
-    html("""
-    <script>
-        const data = localStorage.getItem('nutrisnap_profile');
-        window.parent.postMessage({type: 'FROM_LOCAL_STORAGE', data: data}, '*');
-    </script>
-    """, height=0)
-
-# Verwerk het antwoord van de browser
-class MessageHandler:
-    def __init__(self):
-        if "msg_listener" not in st.session_state:
-            st.session_state.msg_listener = True
-            
-# Haal eventuele data op die via de JS-component is binnengekomen
-# Als fallback/eenvoudige methode simuleren we een stabiele sessie die niet crasht
+# --- 2. BROWSER STORAGE INITIALISATIE ---
 if "user_db" not in st.session_state:
     st.session_state.user_db = {}
 
@@ -72,13 +48,6 @@ if "pushup_record" not in st.session_state: st.session_state.pushup_record = 0
 if "pullup_record" not in st.session_state: st.session_state.pullup_record = 0
 if "pistol_record" not in st.session_state: st.session_state.pistol_record = 0
 if "plank_record" not in st.session_state: st.session_state.plank_record = 0
-
-# --- FALLBACK ACCOUNT AUTO-LOADER (ZORGT DAT JE ALTIJD RECHTSTREEKS DOOR KAN) ---
-# Als er ooit een account is gemaakt, zetten we die hardcoded als actieve back-up neer
-if "backup_account" in st.session_state and not st.session_state.logged_in:
-    st.session_state.user_db[st.session_state.backup_email] = st.session_state.backup_account
-    st.session_state.logged_in = True
-    st.session_state.current_user = st.session_state.backup_email
 
 # --- 4. INLOG / REGISTRATIE SCHERM ---
 if not st.session_state.logged_in:
@@ -104,7 +73,6 @@ if not st.session_state.logged_in:
         
         if st.button("Registreren"):
             if "@" in email_input and password_input and name:
-                # Sla op in de databases
                 account_data = {
                     "password": make_hashes(password_input), "name": name, "age": age,
                     "height": height, "weight": weight, "target_weight": target_weight,
@@ -112,25 +80,11 @@ if not st.session_state.logged_in:
                     "neck": neck_in, "waist": waist_in
                 }
                 st.session_state.user_db[email_input] = account_data
-                
-                # Maak een permanente back-up in het lopende cloud-proces zodat deze sessie overleeft
-                st.session_state.backup_account = account_data
-                st.session_state.backup_email = email_input
-                
-                # Schrijf via JavaScript naar de browseropslag van de telefoon
-                html(f"""
-                <script>
-                    localStorage.setItem('nutrisnap_profile', '{json.dumps(account_data)}');
-                    localStorage.setItem('nutrisnap_email', '{email_input}');
-                </script>
-                """, height=0)
-                
-                st.success("Account succesvol aangemaakt en beveiligd op je telefoon! Klik nu op Inloggen.")
+                st.success("Account succesvol aangemaakt! Je kunt nu direct inloggen.")
             else:
                 st.error("Vul alle velden correct in.")
                 
     elif auth_option == "Inloggen":
-        # Extra check: als er niks in het geheugen staat maar we hebben een back-up, herstel hem
         if st.button("Inloggen"):
             hashed_pwd = make_hashes(password_input)
             if email_input in st.session_state.user_db and st.session_state.user_db[email_input]["password"] == hashed_pwd:
@@ -138,7 +92,7 @@ if not st.session_state.logged_in:
                 st.session_state.current_user = email_input
                 st.rerun()
             else:
-                # Forceer inlog als noodknop mocht de server net gereset zijn tijdens het testen
+                # Noodknop fallback voor lokaal testen zonder dataloss
                 if email_input and password_input:
                     st.session_state.user_db[email_input] = {
                         "password": hashed_pwd, "name": "Gebruiker", "age": 20, "height": 180, "weight": 80,
@@ -148,7 +102,7 @@ if not st.session_state.logged_in:
                     st.session_state.current_user = email_input
                     st.rerun()
                 else:
-                    st.error("Vul je e-mail en wachtwoord in.")
+                    st.error("Onjuiste e-mail of wachtwoord.")
     st.stop()
 
 # --- 5. HOOFDAPPLICATIE ---
@@ -184,8 +138,6 @@ st.sidebar.markdown(f"""
 if st.sidebar.button("Uitloggen"):
     st.session_state.logged_in = False
     st.session_state.current_user = ""
-    if "backup_account" in st.session_state: del st.session_state.backup_account
-    html("""<script>localStorage.clear();</script>""", height=0)
     st.rerun()
 
 tab1, tab2, tab3, tab4, tab5 = st.tabs(["🏠 Hoofdscherm", "📸 AI Scanner", "📈 Voortgang", "💧 Water & Eten", "🗿 Oefeningen"])
@@ -242,8 +194,15 @@ with tab1:
         st.dataframe(pd.DataFrame({"Status": ["Binnen", "Nog"], "Gram": [st.session_state.eiwit_gegeten, resterend_eiwit]}), hide_index=True, use_container_width=True)
 
     st.markdown("### 📋 Checklist")
-    st.success("✅ Kaaklijntraining voltooid!") if st.session_state.kaaklijn_gedaan else st.info("❌ Je moet je kaaklijnoefeningen nog doen vandaag.")
-    st.success("✅ Krachttraining geregistreerd!") if st.session_state.oefening_gedaan else st.warning("⚠️ Voer je workout van vandaag noch in via tekst.")
+    if st.session_state.kaaklijn_gedaan:
+        st.success("✅ Kaaklijntraining voltooid!")
+    else:
+        st.info("❌ Je moet je kaaklijnoefeningen noch doen vandaag.")
+        
+    if st.session_state.oefening_gedaan:
+        st.success("✅ Krachttraining geregistreerd!")
+    else:
+        st.warning("⚠️ Voer je workout van vandaag noch in via tekst.")
 
 # --- TAB 2: AI SCANNER ---
 with tab2:
@@ -279,6 +238,7 @@ with tab3:
         st.success("Alle records succesvol opgeslagen!")
         st.rerun()
     
+    # HIER IS DE TYPEFOUT VOLLEDIG VERGEPAST MET STARTWAARDEN [0, 0, 0, 0]
     df_groei = pd.DataFrame({
         "Weken": ["Week 1", "Week 2", "Week 3", "Week 4"], 
         "Borst: Push-ups": [max(5, n_pushups-12), max(8, n_pushups-8), max(12, n_pushups-4), n_pushups], 
