@@ -5,7 +5,6 @@ import hashlib
 import time
 import math
 import json
-from streamlit.components.v1 import html
 
 # --- 1. CONFIGURATIE & DONKERE MODUS ---
 st.set_page_config(page_title="NutriSnap AI Pro", page_icon="💪", layout="centered")
@@ -44,7 +43,6 @@ if "eiwit_gegeten" not in st.session_state: st.session_state.eiwit_gegeten = 0
 if "kaaklijn_gedaan" not in st.session_state: st.session_state.kaaklijn_gedaan = False
 if "oefening_gedaan" not in st.session_state: st.session_state.oefening_gedaan = False
 
-# Nieuw: Logboek voor oefeningen initialiseren
 if "oefening_log" not in st.session_state: st.session_state.oefening_log = []
 
 if "pushup_record" not in st.session_state: st.session_state.pushup_record = 0
@@ -52,15 +50,15 @@ if "pullup_record" not in st.session_state: st.session_state.pullup_record = 0
 if "pistol_record" not in st.session_state: st.session_state.pistol_record = 0
 if "plank_record" not in st.session_state: st.session_state.plank_record = 0
 
-# Oefeningen database met bijbehorende spiergroepen
+# Oefeningen database met primaire spiergroepen gescheiden door komma's voor de diagrammen
 OEFENINGEN_INFO = {
-    "Pushups": "Borst (Pectoralis), Triceps, Voorkant Schouders (Deltoids), Core",
-    "Diamond Pushups": "Triceps (binnenkant), Borst, Voorkant Schouders",
-    "Pullups": "Brede Rugspier (Lats), Biceps, Bovenrug, Gripkracht",
-    "Chin-ups": "Biceps, Brede Rugspier (Lats), Core",
-    "Pistol Squats": "Bovenbenen (Quadriceps), Bilspieren (Glutes), Hamstrings, Kuiten",
-    "Plank": "Rechte Buikspieren (Abs), Schuine Buikspieren, Onderrug, Schouders",
-    "Hollow Body Hold": "Diepe Core, Rechte Buikspieren, Heupbuigers"
+    "Pushups": "Borst, Triceps, Schouders, Core",
+    "Diamond Pushups": "Triceps, Borst, Schouders",
+    "Pullups": "Rug, Biceps, Core",
+    "Chin-ups": "Biceps, Rug, Core",
+    "Pistol Squats": "Benen, Billen, Hamstrings",
+    "Plank": "Core, Schouders, Onderrug",
+    "Hollow Body Hold": "Core, Buikspieren"
 }
 
 # --- 4. INLOG / REGISTRATIE SCHERM ---
@@ -176,15 +174,26 @@ with tab1:
         st.success("👑 Jouw vetpercentage is optimaal voor een messcherpe kaaklijn!")
 
     st.markdown("### 🏅 Jouw Mijlpalen & Rangen")
+    
+    # 4 Rangen berekeningen hersteld
     p_reps = st.session_state.pushup_record
     p_badge = "🥉 Beginner" if p_reps <= 15 else "🥈 Novice" if p_reps <= 30 else "🥇 Advanced"
+    
     pu_reps = st.session_state.pullup_record
     pu_badge = "🥉 Beginner" if pu_reps <= 5 else "🥈 Novice" if pu_reps <= 12 else "🥇 Advanced"
+    
+    pi_reps = st.session_state.pistol_record
+    pi_badge = "🥉 Beginner" if pi_reps <= 3 else "🥈 Novice" if pi_reps <= 8 else "🥇 Advanced"
+    
+    pl_secs = st.session_state.plank_record
+    pl_badge = "🥉 Beginner" if pl_secs <= 60 else "🥈 Novice" if pl_secs <= 120 else "🥇 Advanced"
 
     st.markdown(f"""
     <div class="badge-grid">
         <div class="badge-box"><b>Opdrukken</b><br><small>{p_badge} ({p_reps} reps)</small></div>
         <div class="badge-box"><b>Optrekken</b><br><small>{pu_badge} ({pu_reps} reps)</small></div>
+        <div class="badge-box"><b>Pistol Squats</b><br><small>{pi_badge} ({pi_reps} reps)</small></div>
+        <div class="badge-box"><b>Plank</b><br><small>{pl_badge} ({pl_secs}s)</small></div>
     </div>
     """, unsafe_allow_html=True)
 
@@ -208,9 +217,41 @@ with tab2:
                     st.session_state.eiwit_gegeten += mock_protein
                     st.rerun()
 
-# --- TAB 3: VOORTGANG ---
+# --- TAB 3: VOORTGANG & DIAGRAMMEN ---
 with tab3:
-    st.title("📈 Wekelijkse Calisthenics Test")
+    st.title("📈 Voortgang & Diagrammen")
+    
+    # 1. Diagrammen hersteld: Huidige Calisthenics Records
+    st.markdown("### 📊 Jouw Kracht-PR's")
+    pr_data = pd.DataFrame({
+        "Oefening": ["Pushups (reps)", "Pullups (reps)", "Pistol Squats (reps)", "Plank (sec)"],
+        "Aantal": [st.session_state.pushup_record, st.session_state.pullup_record, st.session_state.pistol_record, st.session_state.plank_record]
+    })
+    st.bar_chart(data=pr_data, x="Oefening", y="Aantal", color="#FF1493")
+
+    # 2. Extra Diagram: Getrainde spiergroepen volumebalans
+    st.markdown("### 🧬 Spiergroep Distributie (Volume)")
+    if st.session_state.oefening_log:
+        spier_counts = {}
+        for log in st.session_state.oefening_log:
+            try:
+                # Bereken volume (sets * reps)
+                sets, reps = map(int, log["Volume"].split('x'))
+                volume = sets * reps
+            except:
+                volume = 10
+            
+            # Verdeel volume over de spiergroepen
+            for spier in log["Getrainde Spieren"].split(', '):
+                spier_counts[spier] = spier_counts.get(spier, 0) + volume
+                
+        spier_df = pd.DataFrame(list(spier_counts.items()), columns=["Spiergroep", "Totaal Volume"])
+        st.bar_chart(data=spier_df, x="Spiergroep", y="Totaal Volume", color="#00FFFF")
+    else:
+        st.caption("Log oefeningen in het laatste tabblad om je spierbalans-diagram te activeren.")
+
+    st.markdown("---")
+    st.markdown("### ⚙️ Records handmatig bijwerken")
     with st.form("records_form"):
         new_pushup = st.number_input("Max Pushups", min_value=0, value=st.session_state.pushup_record)
         new_pullup = st.number_input("Max Pullups", min_value=0, value=st.session_state.pullup_record)
@@ -257,7 +298,6 @@ with tab5:
     st.markdown("---")
     st.markdown("### 🏋️‍♂️ Oefening Registreren")
     
-    # Selectiemenu voor de oefening en invoer voor de herhalingen
     gekozen_oefening = st.selectbox("Welke oefening heb je gedaan?", list(OEFENINGEN_INFO.keys()))
     sets = st.number_input("Aantal sets", min_value=1, max_value=10, value=3)
     reps = st.number_input("Herhalingen per set (of seconden bij plank)", min_value=1, max_value=300, value=10)
@@ -266,22 +306,19 @@ with tab5:
         spieren = OEFENINGEN_INFO[gekozen_oefening]
         tijdstip = datetime.datetime.now().strftime("%H:%M")
         
-        # Sla op in de tijdelijke database (Logboek)
         nieuw_log = {
             "Tijd": tijdstip,
             "Oefening": gekozen_oefening,
             "Volume": f"{sets}x{reps}",
             "Getrainde Spieren": spieren
         }
-        st.session_state.oefening_log.insert(0, nieuw_log) # Nieuwste bovenaan
+        st.session_state.oefening_log.insert(0, nieuw_log)
         
-        # Directe visuele feedback over getrainde spieren
         st.success(f"**{gekozen_oefening} succesvol gelogd!**")
         st.info(f"🧬 **Getrainde spiergroepen:** {spieren}")
         time.sleep(1)
         st.rerun()
 
-    # --- HET LOGBOEK ---
     st.markdown("### 📖 Oefeningen Logboek (Vandaag)")
     if st.session_state.oefening_log:
         df_log = pd.DataFrame(st.session_state.oefening_log)
@@ -292,10 +329,3 @@ with tab5:
             st.rerun()
     else:
         st.caption("Je hebt vandaag nog geen spieroefeningen gelogd.")
-
-    st.markdown("### 🏃‍♂️ Aanbevolen Progressies")
-    st.info("""
-    * **Push:** Richt op Diamond Pushups of Pseudo Planche Pushups.
-    * **Pull:** Werk naar gecontroleerde Chest-to-Bar Pullups toe.
-    * **Core:** Train de Hollow Body Hold voor een strakke core.
-    """)
