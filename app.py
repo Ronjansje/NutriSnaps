@@ -5,6 +5,7 @@ import hashlib
 import time
 import math
 import json
+from streamlit.components.v1 import html
 
 # --- 1. CONFIGURATIE & DONKERE MODUS ---
 st.set_page_config(page_title="NutriSnap AI Pro", page_icon="💪", layout="centered")
@@ -30,28 +31,21 @@ st.markdown("""
 def make_hashes(password):
     return hashlib.sha256(str.encode(password)).hexdigest()
 
-# --- 2. BROWSER STORAGE INITIALISATIE ---
-if "user_db" not in st.session_state:
-    st.session_state.user_db = {}
+# --- 2. INITIALISATIE STATE MET STANDAARD ACCU-DATA ---
+vandaag_str = datetime.date.today().strftime("%Y-%m-%d")
 
-# --- 3. TRACKING INITIALISATIE ---
+if "user_db" not in st.session_state: st.session_state.user_db = {}
 if "logged_in" not in st.session_state: st.session_state.logged_in = False
 if "current_user" not in st.session_state: st.session_state.current_user = ""
 if "water_ml" not in st.session_state: st.session_state.water_ml = 0
 if "kcal_gegeten" not in st.session_state: st.session_state.kcal_gegeten = 0
 if "eiwit_gegeten" not in st.session_state: st.session_state.eiwit_gegeten = 0
-if "kaaklijn_gedaan" not in st.session_state: st.session_state.kaaklijn_gedaan = False
-if "oefening_gedaan" not in st.session_state: st.session_state.oefening_gedaan = False
-
 if "oefening_log" not in st.session_state: st.session_state.oefening_log = []
-
-# Records (huidige stand voor hoofdscherm)
 if "pushup_record" not in st.session_state: st.session_state.pushup_record = 12
 if "pullup_record" not in st.session_state: st.session_state.pullup_record = 4
 if "pistol_record" not in st.session_state: st.session_state.pistol_record = 2
 if "plank_record" not in st.session_state: st.session_state.plank_record = 45
-
-# Historie logboek voor progressie diagrammen (startdata ingevuld als voorbeeld)
+if "last_log_date" not in st.session_state: st.session_state.last_log_date = vandaag_str
 if "pr_history" not in st.session_state:
     st.session_state.pr_history = [
         {"Datum": "2026-04-26", "Pushups": 10, "Pullups": 3, "Pistol Squats": 1, "Plank (sec)": 30},
@@ -68,12 +62,72 @@ OEFENINGEN_INFO = {
     "Hollow Body Hold": "Core, Buikspieren"
 }
 
+# Helperfunctie om elke verandering direct in de browser op te slaan
+def save_to_browser():
+    payload = {
+        "user_db": st.session_state.user_db, "current_user": st.session_state.current_user,
+        "logged_in": st.session_state.logged_in, "water_ml": st.session_state.water_ml,
+        "kcal_gegeten": st.session_state.kcal_gegeten, "eiwit_gegeten": st.session_state.eiwit_gegeten,
+        "oefening_log": st.session_state.oefening_log, "pushup_record": st.session_state.pushup_record,
+        "pullup_record": st.session_state.pullup_record, "pistol_record": st.session_state.pistol_record,
+        "plank_record": st.session_state.plank_record, "pr_history": st.session_state.pr_history,
+        "last_log_date": st.session_state.last_log_date
+    }
+    json_str = json.dumps(payload).replace("'", "\\'")
+    html(f"<script>localStorage.setItem('nutrisnap_core_data', '{json_str}');</script>", height=0)
+
+# --- 3. BROWSER DATA SYNC (LOCALSTORAGE) ---
+query_params = st.query_params
+
+if "browser_data" in query_params and not st.session_state.get("synced", False):
+    try:
+        raw_data = json.loads(query_params["browser_data"])
+        st.session_state.user_db = raw_data.get("user_db", {})
+        st.session_state.current_user = raw_data.get("current_user", "")
+        st.session_state.logged_in = raw_data.get("logged_in", False)
+        st.session_state.water_ml = raw_data.get("water_ml", 0)
+        st.session_state.kcal_gegeten = raw_data.get("kcal_gegeten", 0)
+        st.session_state.eiwit_gegeten = raw_data.get("eiwit_gegeten", 0)
+        st.session_state.oefening_log = raw_data.get("oefening_log", [])
+        st.session_state.pushup_record = raw_data.get("pushup_record", 12)
+        st.session_state.pullup_record = raw_data.get("pullup_record", 4)
+        st.session_state.pistol_record = raw_data.get("pistol_record", 2)
+        st.session_state.plank_record = raw_data.get("plank_record", 45)
+        st.session_state.pr_history = raw_data.get("pr_history", st.session_state.pr_history)
+        st.session_state.last_log_date = raw_data.get("last_log_date", vandaag_str)
+        st.session_state.synced = True
+        
+        # NIEUW: Automatische nachtelijke reset controle direct na browser sync
+        if st.session_state.last_log_date != vandaag_str:
+            st.session_state.water_ml = 0
+            st.session_state.kcal_gegeten = 0
+            st.session_state.eiwit_gegeten = 0
+            st.session_state.oefening_log = []
+            st.session_state.last_log_date = vandaag_str
+            save_to_browser()
+            
+        st.rerun()
+    except Exception as e:
+        pass
+
+if "browser_data" not in query_params and not st.session_state.get("synced", False):
+    html("""
+    <script>
+        const localData = localStorage.getItem("nutrisnap_core_data");
+        if (localData) {
+            const url = new URL(window.parent.location.href);
+            url.searchParams.set("browser_data", localData);
+            window.parent.location.href = url.toString();
+        }
+    </script>
+    """, height=0)
+
 # --- 4. INLOG / REGISTRATIE SCHERM ---
 if not st.session_state.logged_in:
-    st.title("📸 NutriSnap AI")
-    st.caption("Je account wordt nu lokaal opgeslagen op dit toestel")
+    st.title("📸 NutriSnap AI Pro")
+    st.caption("Je voortgang, logs en PR-grafieken worden lokaal bewaard.")
         
-    auth_option = st.radio("Kies een optie:", ["Inloggen", "Account Aanmaken"], horizontal=True)
+    auth_option = st.radio("Kies optie:", ["Inloggen", "Account Aanmaken"], horizontal=True)
     email_input = st.text_input("E-mailadres")
     password_input = st.text_input("Wachtwoord", type="password")
     
@@ -83,25 +137,25 @@ if not st.session_state.logged_in:
         height = st.number_input("Lengte (cm)", min_value=120, max_value=230, value=180)
         weight = st.number_input("Huidig Gewicht (kg)", min_value=40.0, max_value=180.0, value=80.0)
         target_weight = st.number_input("Doel Gewicht (kg)", min_value=40.0, max_value=180.0, value=75.0)
-        days_train = st.slider("Aantal dagen per week sporten", 0, 7, 3)
-        duration_train = st.slider("Gemiddelde duur per training (minuten)", 15, 180, 60)
-        
-        st.markdown("##### 📏 Omtrekmaten voor Vetpercentage Calculator:")
+        days_train = st.slider("Dagen per week sporten", 0, 7, 3)
+        duration_train = st.slider("Duur per training (min)", 15, 180, 60)
         neck_in = st.number_input("Nekomtrek (cm)", min_value=20.0, max_value=60.0, value=38.0)
-        waist_in = st.number_input("Buikomtrek (cm - ter hoogte van de navel)", min_value=50.0, max_value=150.0, value=85.0)
+        waist_in = st.number_input("Buikomtrek (cm)", min_value=50.0, max_value=150.0, value=85.0)
         
         if st.button("Registreren"):
             if "@" in email_input and password_input and name:
-                account_data = {
+                st.session_state.user_db[email_input] = {
                     "password": make_hashes(password_input), "name": name, "age": age,
                     "height": height, "weight": weight, "target_weight": target_weight,
-                    "days_train": days_train, "duration_train": duration_train,
-                    "neck": neck_in, "waist": waist_in
+                    "days_train": days_train, "duration_train": duration_train, "neck": neck_in, "waist": waist_in
                 }
-                st.session_state.user_db[email_input] = account_data
-                st.success("Account succesvol aangemaakt! Je kunt nu direct inloggen.")
+                st.session_state.logged_in = True
+                st.session_state.current_user = email_input
+                st.session_state.last_log_date = vandaag_str
+                save_to_browser()
+                st.rerun()
             else:
-                st.error("Vul alle velden correct in.")
+                st.error("Vul alle velden in.")
                 
     elif auth_option == "Inloggen":
         if st.button("Inloggen"):
@@ -109,6 +163,7 @@ if not st.session_state.logged_in:
             if email_input in st.session_state.user_db and st.session_state.user_db[email_input]["password"] == hashed_pwd:
                 st.session_state.logged_in = True
                 st.session_state.current_user = email_input
+                save_to_browser()
                 st.rerun()
             else:
                 if email_input and password_input:
@@ -118,13 +173,16 @@ if not st.session_state.logged_in:
                     }
                     st.session_state.logged_in = True
                     st.session_state.current_user = email_input
+                    save_to_browser()
                     st.rerun()
                 else:
-                    st.error("Onjuiste e-mail of wachtwoord.")
+                    st.error("Onjuiste gegevens.")
     st.stop()
 
 # --- 5. HOOFDAPPLICATIE ---
-user = st.session_state.user_db[st.session_state.current_user]
+user = st.session_state.user_db.get(st.session_state.current_user, {
+    "name": "Gebruiker", "age": 20, "height": 180, "weight": 80, "target_weight": 75, "days_train": 3, "duration_train": 60, "neck": 38, "waist": 85
+})
 
 bmr = (10 * user["weight"]) + (6.25 * user["height"]) - (5 * user["age"]) + 5
 activity = 1.2 if user["days_train"] <= 1 else 1.375 if user["days_train"] <= 3 else 1.55 if user["days_train"] <= 5 else 1.725
@@ -138,22 +196,19 @@ try:
     vet_massa = user["weight"] * (vetpercentage / 100)
     doel_vet_massa = user["weight"] * (12.0 / 100)
     vet_te_verliezen = max(0.0, vet_massa - doel_vet_massa)
-except Exception:
-    vetpercentage = 15.0
-    vet_te_verliezen = 0.0
+except:
+    vetpercentage, vet_te_verliezen = 15.0, 0.0
 
 st.sidebar.title("✨ NutriSnap Pro")
-st.sidebar.markdown(f"Ingelogd als: **{user['name']}**")
-st.sidebar.markdown(f"""
-📋 **Jouw Dagelijkse Doelen:**
-* 🔥 **Calorieën:** `{afval_kcal} kcal`
-* 🥩 **Eiwitten:** `{doel_eiwit} g`
-* 💧 **Waterdoel:** `{doel_water_liters} Liter`
-""")
+st.sidebar.markdown(f"Gebruiker: **{user['name']}**")
+st.sidebar.markdown(f"🔥 `{afval_kcal} kcal` | 🥩 `{doel_eiwit}g` | 💧 `{doel_water_liters}L`")
 
 if st.sidebar.button("Uitloggen"):
     st.session_state.logged_in = False
     st.session_state.current_user = ""
+    st.session_state.synced = False
+    st.query_params.clear()
+    html("<script>localStorage.removeItem('nutrisnap_core_data'); window.parent.location.search = '';</script>", height=0)
     st.rerun()
 
 tab1, tab2, tab3, tab4, tab5 = st.tabs(["🏠 Hoofdscherm", "📸 AI Scanner", "📈 Voortgang", "💧 Water & Eten", "🗿 Oefeningen"])
@@ -162,186 +217,91 @@ tab1, tab2, tab3, tab4, tab5 = st.tabs(["🏠 Hoofdscherm", "📸 AI Scanner", "
 with tab1:
     st.title(f"Hoi {user['name']}! 👋")
     vandaag = datetime.date.today()
-    if vandaag.weekday() == 6: 
-        st.error("🚨 **TESTDAG!** Het is zondag. Ga snel naar 'Voortgang' om je PR's te verbreken!")
-    else: 
-        st.info(f"📅 Nog **{6 - vandaag.weekday()} dagen** tot de wekelijkse calisthenics-testdag (zondag).")
+    if vandaag.weekday() == 6: st.error("🚨 **TESTDAG!** Voer je nieuwe PR's in!")
+    else: st.info(f"📅 Nog **{6 - vandaag.weekday()} dagen** tot de calisthenics-testdag (zondag).")
 
-    st.markdown("### 📏 Jouw Lichaamscompositie")
-    st.markdown(f"""
-    <div class="fat-box">
-        <h4 style="margin:0; color:#00FFFF;">🧬 Vetpercentage: {vetpercentage:.1f}%</h4>
-        <p style="margin:5px 0 0 0; color:#9CA3AF;">Nekomtrek: <b>{user['neck']} cm</b> | Buikomtrek: <b>{user['waist']} cm</b></p>
-    </div>
-    """, unsafe_allow_html=True)
-    
-    if vet_te_verliezen > 0: 
-        st.warning(f"🗿 Je moet nog **{vet_te_verliezen:.1f} kg vet** verliezen voor een scherpe kaaklijn (doel: 12%).")
-    else: 
-        st.success("👑 Jouw vetpercentage is optimaal voor een messcherpe kaaklijn!")
+    st.markdown(f"""<div class="fat-box"><h4 style="margin:0; color:#00FFFF;">🧬 Vetpercentage: {vetpercentage:.1f}%</h4></div>""", unsafe_allow_html=True)
+    if vet_te_verliezen > 0: st.warning(f"🗿 Nog **{vet_te_verliezen:.1f} kg vet** te verliezen voor doel (12%).")
 
-    st.markdown("### 🏅 Actuele Rangen & PR's")
-    p_reps = st.session_state.pushup_record
-    p_badge = "🥉 Beginner" if p_reps <= 15 else "🥈 Novice" if p_reps <= 30 else "🥇 Advanced"
+    st.markdown("### 🏅 Actuele Rangen")
+    p_badge = "🥉" if st.session_state.pushup_record <= 15 else "🥈" if st.session_state.pushup_record <= 30 else "🥇"
+    pu_badge = "🥉" if st.session_state.pullup_record <= 5 else "🥈" if st.session_state.pullup_record <= 12 else "🥇"
     
-    pu_reps = st.session_state.pullup_record
-    pu_badge = "🥉 Beginner" if pu_reps <= 5 else "🥈 Novice" if pu_reps <= 12 else "🥇 Advanced"
-    
-    pi_reps = st.session_state.pistol_record
-    pi_badge = "🥉 Beginner" if pi_reps <= 3 else "🥈 Novice" if pi_reps <= 8 else "🥇 Advanced"
-    
-    pl_secs = st.session_state.plank_record
-    pl_badge = "🥉 Beginner" if pl_secs <= 60 else "🥈 Novice" if pl_secs <= 120 else "🥇 Advanced"
-
     st.markdown(f"""
     <div class="badge-grid">
-        <div class="badge-box"><b>Opdrukken</b><br><small>{p_badge} ({p_reps} reps)</small></div>
-        <div class="badge-box"><b>Optrekken</b><br><small>{pu_badge} ({pu_reps} reps)</small></div>
-        <div class="badge-box"><b>Pistol Squats</b><br><small>{pi_badge} ({pi_reps} reps)</small></div>
-        <div class="badge-box"><b>Plank</b><br><small>{pl_badge} ({pl_secs}s)</small></div>
+        <div class="badge-box"><b>Pushups</b><br>{p_badge} {st.session_state.pushup_record}</div>
+        <div class="badge-box"><b>Pullups</b><br>{pu_badge} {st.session_state.pullup_record}</div>
+        <div class="badge-box"><b>Pistols</b><br> {st.session_state.pistol_record}</div>
+        <div class="badge-box"><b>Plank</b><br> {st.session_state.plank_record}s</div>
     </div>
     """, unsafe_allow_html=True)
 
-# --- TAB 2: AI SCANNER ---
+# --- TAB 2: AI Maaltijd Scanner ---
 with tab2:
-    st.title("📸 AI Maaltijd Scanner")
-    scan_method = st.radio("Kies invoermethode:", ["Camera", "Bestand Uploaden"], horizontal=True)
-    img_file = st.camera_input("Maak een foto") if scan_method == "Camera" else st.file_uploader("Kies afbeelding...", type=["jpg", "jpeg", "png"])
-        
-    if img_file is not None:
-        st.image(img_file, use_container_width=True)
-        if st.button("Analyseer Maaltijd met AI"):
-            with st.spinner("AI analyseert..."):
-                time.sleep(2)
-                st.success("Analyse compleet!")
-                mock_kcal, mock_protein = 450, 32
-                st.metric("Geschatte Calorieën", f"{mock_kcal} kcal")
-                st.metric("Geschatte Eiwitten", f"{mock_protein} g")
-                if st.button("Voeg toe aan log van vandaag"):
-                    st.session_state.kcal_gegeten += mock_kcal
-                    st.session_state.eiwit_gegeten += mock_protein
-                    st.rerun()
-
-# --- TAB 3: VOORTGANG (SAMENGEVOEGD DIAGRAM) ---
-with tab3:
-    st.title("📈 Jouw Progressie Tijdlijn")
-    st.caption("Bekijk hier hoe al je PR's zich week na week ontwikkelen.")
-    
-    # Maak één DataFrame van de opgeslagen PR-historie
-    df_history = pd.DataFrame(st.session_state.pr_history)
-    
-    # NIEUW: Twee diagrammen samengevoegd in één overzichtelijk combinatiediagram
-    st.markdown("#### 📊 Gecombineerde Calisthenics Groei")
-    st.line_chart(
-        data=df_history, 
-        x="Datum", 
-        y=["Pushups", "Pullups", "Pistol Squats", "Plank (sec)"], 
-        color=["#FF1493", "#00FFFF", "#FFD700", "#00FF00"]
-    )
-    
-    st.markdown("---")
-    st.markdown("### 🚨 Zondagse PR Test Registreren")
-    st.caption("Voer hier je nieuwe maximale scores in om je grafieklijnen omhoog te stuwen.")
-    
-    with st.form("records_form"):
-        test_date = st.date_input("Datum van test", datetime.date.today())
-        new_pushup = st.number_input("Max Pushups", min_value=0, value=st.session_state.pushup_record)
-        new_pullup = st.number_input("Max Pullups", min_value=0, value=st.session_state.pullup_record)
-        new_pistol = st.number_input("Max Pistol Squats", min_value=0, value=st.session_state.pistol_record)
-        new_plank = st.number_input("Max Plankduur (sec)", min_value=0, value=st.session_state.plank_record)
-        
-        if st.form_submit_button("🔥 Nieuwe PR's Opslaan & Loggen"):
-            str_date = test_date.strftime("%Y-%m-%d")
-            
-            st.session_state.pushup_record = new_pushup
-            st.session_state.pullup_record = new_pullup
-            st.session_state.pistol_record = new_pistol
-            st.session_state.plank_record = new_plank
-            
-            nieuwe_meting = {
-                "Datum": str_date,
-                "Pushups": new_pushup,
-                "Pullups": new_pullup,
-                "Pistol Squats": new_pistol,
-                "Plank (sec)": new_plank
-            }
-            
-            st.session_state.pr_history = [h for h in st.session_state.pr_history if h["Datum"] != str_date]
-            st.session_state.pr_history.append(nieuwe_meting)
-            st.session_state.pr_history = sorted(st.session_state.pr_history, key=lambda x: x["Datum"])
-            
-            st.success("Geweldig gewerkt! Je gecombineerde tijdlijn is bijgewerkt.")
-            time.sleep(1)
+    st.title("📸 AI Scanner")
+    img_file = st.camera_input("Scan maaltijd")
+    if img_file:
+        if st.button("Analyseer"):
+            st.success("450 kcal & 32g Eiwit geschat!")
+            st.session_state.kcal_gegeten += 450
+            st.session_state.eiwit_gegeten += 32
+            st.session_state.last_log_date = vandaag_str
+            save_to_browser()
             st.rerun()
 
-    if st.button("🔄 Reset Tijdlijn"):
-        st.session_state.pr_history = [{"Datum": datetime.date.today().strftime("%Y-%m-%d"), "Pushups": new_pushup, "Pullups": new_pullup, "Pistol Squats": new_pistol, "Plank (sec)": new_plank}]
-        st.rerun()
-
-# --- TAB 4: WATER & ETEN ---
-with tab4:
-    st.title("💧 Water & 🥩 Voeding Tracker")
-    col1, col2 = st.columns(2)
-    with col1:
-        water_liters_nu = st.session_state.water_ml / 1000
-        st.metric("Water Inname", f"{water_liters_nu:.1f} / {doel_water_liters} L")
-        st.progress(min(1.0, water_liters_nu / max(0.1, doel_water_liters)))
-    with col2:
-        st.metric("Eiwit Inname", f"{st.session_state.eiwit_gegeten} / {doel_eiwit} g")
-        st.progress(min(1.0, st.session_state.eiwit_gegeten / max(1, doel_eiwit)))
-    st.metric("Calorieën Verbruikt", f"{st.session_state.kcal_gegeten} / {afval_kcal} kcal")
-    st.progress(min(1.0, st.session_state.kcal_gegeten / max(1, afval_kcal)))
+# --- TAB 3: VOORTGANG & VERBETERDIAGRAM ---
+with tab3:
+    st.title("📈 Progressie")
+    df_history = pd.DataFrame(st.session_state.pr_history)
+    st.line_chart(data=df_history, x="Datum", y=["Pushups", "Pullups", "Pistol Squats", "Plank (sec)"])
     
-    st.markdown("---")
-    c1, c2, c3 = st.columns(3)
+    with st.form("pr_form"):
+        d = st.date_input("Testdatum", datetime.date.today()).strftime("%Y-%m-%d")
+        pu = st.number_input("Pushups Max", value=st.session_state.pushup_record)
+        pl = st.number_input("Pullups Max", value=st.session_state.pullup_record)
+        pi = st.number_input("Pistols Max", value=st.session_state.pistol_record)
+        pk = st.number_input("Plank Max (sec)", value=st.session_state.plank_record)
+        if st.form_submit_button("PR Opslaan"):
+            st.session_state.pushup_record, st.session_state.pullup_record = pu, pl
+            st.session_state.pistol_record, st.session_state.plank_record = pi, pk
+            st.session_state.pr_history = [h for h in st.session_state.pr_history if h["Datum"] != d]
+            st.session_state.pr_history.append({"Datum": d, "Pushups": pu, "Pullups": pl, "Pistol Squats": pi, "Plank (sec)": pk})
+            save_to_browser()
+            st.rerun()
+
+# --- TAB 4: WATER & VOEDING ---
+with tab4:
+    st.title("💧 Water & Voeding")
+    st.caption(f"Laatste activiteit geregistreerd op: `{st.session_state.last_log_date}`")
+    st.metric("Water", f"{st.session_state.water_ml / 1000:.1f} / {doel_water_liters} L")
+    st.metric("Eiwit", f"{st.session_state.eiwit_gegeten} / {doel_eiwit} g")
+    st.metric("Calorieën", f"{st.session_state.kcal_gegeten} / {afval_kcal} kcal")
+    
+    c1, c2 = st.columns(2)
     with c1:
-        if st.button("➕ 250ml Water"): st.session_state.water_ml += 250; st.rerun()
+        if st.button("➕ 250ml"): 
+            st.session_state.water_ml += 250
+            st.session_state.last_log_date = vandaag_str
+            save_to_browser()
+            st.rerun()
     with c2:
-        if st.button("➕ 500ml Water"): st.session_state.water_ml += 500; st.rerun()
-    with c3:
-        if st.button("🔄 Reset Logs"):
+        if st.button("🔄 Handmatige Reset"): 
             st.session_state.water_ml, st.session_state.kcal_gegeten, st.session_state.eiwit_gegeten = 0, 0, 0
+            st.session_state.last_log_date = vandaag_str
+            save_to_browser()
             st.rerun()
 
 # --- TAB 5: OEFENINGEN ---
 with tab5:
-    st.title("🗿 Dagelijkse Routines & Tracker")
-    
-    st.markdown("### Bone / Kaaklijn & Houding")
-    st.checkbox("Mewing / Kaaklijnoefeningen gedaan (5 min)", key="kaaklijn_gedaan")
-    st.checkbox("Nek- en rughouding stretches gedaan", key="oefening_gedaan")
-    
-    st.markdown("---")
-    st.markdown("### 🏋️‍♂️ Dagelijkse Oefening Registreren")
-    
-    gekozen_oefening = st.selectbox("Welke oefening heb je gedaan?", list(OEFENINGEN_INFO.keys()))
-    sets = st.number_input("Aantal sets", min_value=1, max_value=10, value=3)
-    reps = st.number_input("Herhalingen per set (of seconden)", min_value=1, max_value=300, value=10)
-    
-    if st.button("💪 Log Oefening"):
-        spieren = OEFENINGEN_INFO[gekozen_oefening]
-        tijdstip = datetime.datetime.now().strftime("%H:%M")
-        
-        nieuw_log = {
-            "Tijd": tijdstip,
-            "Oefening": gekozen_oefening,
-            "Volume": f"{sets}x{reps}",
-            "Getrainde Spieren": spieren
-        }
-        st.session_state.oefening_log.insert(0, nieuw_log)
-        
-        st.success(f"**{gekozen_oefening} succesvol gelogd!**")
-        st.info(f"🧬 **Getrainde spiergroepen:** {spieren}")
-        time.sleep(1)
+    st.title("🗿 Oefeningen Tracker")
+    ex = st.selectbox("Oefening", list(OEFENINGEN_INFO.keys()))
+    s = st.number_input("Sets", min_value=1, value=3)
+    r = st.number_input("Reps", min_value=1, value=10)
+    if st.button("💪 Log"):
+        st.session_state.oefening_log.insert(0, {"Tijd": datetime.datetime.now().strftime("%H:%M"), "Oefening": ex, "Volume": f"{s}x{r}", "Getrainde Spieren": OEFENINGEN_INFO[ex]})
+        st.session_state.last_log_date = vandaag_str
+        save_to_browser()
         st.rerun()
-
-    st.markdown("### 📖 Oefeningen Logboek (Vandaag)")
-    if st.session_state.oefening_log:
-        df_log = pd.DataFrame(st.session_state.oefening_log)
-        st.dataframe(df_log, use_container_width=True, hide_index=True)
         
-        if st.button("🗑️ Logboek Leegmaken"):
-            st.session_state.oefening_log = []
-            st.rerun()
-    else:
-        st.caption("Je hebt vandaag nog geen spieroefeningen gelogd.")
+    if st.session_state.oefening_log:
+        st.dataframe(pd.DataFrame(st.session_state.oefening_log), use_container_width=True, hide_index=True)
