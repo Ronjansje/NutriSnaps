@@ -60,6 +60,7 @@ def voorspel_spieren(oefening_naam):
 
 # --- 2. INITIALISATIE STATE ---
 vandaag_str = datetime.date.today().strftime("%Y-%m-%d")
+vorige_week_str = (datetime.date.today() - datetime.timedelta(days=7)).strftime("%Y-%m-%d")
 
 if "user_db" not in st.session_state: st.session_state.user_db = {}
 if "logged_in" not in st.session_state: st.session_state.logged_in = False
@@ -79,14 +80,14 @@ if "last_streak_date" not in st.session_state: st.session_state.last_streak_date
 
 if "pr_history" not in st.session_state:
     st.session_state.pr_history = [
-        {"Datum": "2026-04-26", "Pushups": 10, "Pullups": 3, "Pistol Squats": 1, "Plank (sec)": 30},
-        {"Datum": "2026-05-03", "Pushups": 12, "Pullups": 4, "Pistol Squats": 2, "Plank (sec)": 45}
+        {"Datum": vorige_week_str, "Pushups": 10, "Pullups": 3, "Pistol Squats": 1, "Plank (sec)": 30},
+        {"Datum": vandaag_str, "Pushups": 12, "Pullups": 4, "Pistol Squats": 2, "Plank (sec)": 45}
     ]
 
 if "weight_history" not in st.session_state:
     st.session_state.weight_history = [
-        {"Datum": "2026-04-26", "Gewicht (kg)": 82.0},
-        {"Datum": "2026-05-03", "Gewicht (kg)": 80.5}
+        {"Datum": vorige_week_str, "Gewicht (kg)": 82.0},
+        {"Datum": vandaag_str, "Gewicht (kg)": 80.5}
     ]
 
 OEFENINGEN_INFO = {
@@ -217,8 +218,6 @@ if not st.session_state.logged_in:
 
 # --- 5. BEREKENINGEN ---
 user = st.session_state.user_db.get(st.session_state.current_user, {"name": "Gebruiker", "age": 20, "birth_date": "2006-01-01", "height": 180, "weight": 80, "target_weight": 75, "days_train": 3, "duration_train": 60, "neck": 38, "waist": 85})
-
-# Automatische live-update van de leeftijd op basis van opgeslagen geboortedatum
 user["age"] = bereken_leeftijd(user["birth_date"])
 
 bmr = (10 * user["weight"]) + (6.25 * user["height"]) - (5 * user["age"]) + 5
@@ -242,13 +241,11 @@ tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs(["🏠 Dashboard", "📸 AI Scanner
 # --- TAB 1: DASHBOARD ---
 with tab1:
     st.title(f"Hoi {user['name']}! 👋")
-    
-    # Checken of de gebruiker vandaag jarig is
     try:
         bdate = datetime.datetime.strptime(user["birth_date"], "%Y-%m-%d").date()
         if bdate.month == datetime.date.today().month and bdate.day == datetime.date.today().day:
             st.balloons()
-            st.success(f"🎉 **Fijne verjaardag, {user['name']}! Je bent vandaag {user['age']} jaar geworden!** 🎂")
+            st.success(f"🎉 **Fijne verjaardag! Je bent vandaag {user['age']} jaar geworden!** 🎂")
     except:
         pass
 
@@ -258,6 +255,14 @@ with tab1:
         st.markdown(f"""<div class="status-box" style="border-left-color: #FF1493;"><b style="color: #FF1493;">❌ Routine incompleet ({vinkjes_teller}/{totaal_routines})</b></div>""", unsafe_allow_html=True)
 
     st.markdown(f"""<div class="fat-box"><h4 style="margin:0; color:#00FFFF;">🧬 Vetpercentage: {vetpercentage:.1f}%</h4></div>""", unsafe_allow_html=True)
+
+    st.markdown("### 🏅 Actuele PR Rangen")
+    st.markdown(f"""<div class="badge-grid">
+        <div class="badge-box"><b>Pushups</b><br>{st.session_state.pushup_record} reps</div>
+        <div class="badge-box"><b>Pullups</b><br>{st.session_state.pullup_record} reps</div>
+        <div class="badge-box"><b>Pistols</b><br>{st.session_state.pistol_record} reps</div>
+        <div class="badge-box"><b>Plank</b><br>{st.session_state.plank_record}s</div>
+    </div>""", unsafe_allow_html=True)
 
 # --- TAB 2: AI SCANNER ---
 with tab2:
@@ -283,19 +288,36 @@ with tab3:
         w_input = st.number_input("Gewicht vandaag (kg)", value=user["weight"])
         pu = st.number_input("Max Pushups", value=st.session_state.pushup_record)
         pl = st.number_input("Max Pullups", value=st.session_state.pullup_record)
+        pi = st.number_input("Max Pistol Squats", value=st.session_state.pistol_record)
+        pk = st.number_input("Max Plankduur (sec)", value=st.session_state.plank_record)
         if st.form_submit_button("Metingen Opslaan"):
             st.session_state.pushup_record = pu
+            st.session_state.pullup_record = pl
+            st.session_state.pistol_record = pi
+            st.session_state.plank_record = pk
             st.session_state.weight_history = [h for h in st.session_state.weight_history if h["Datum"] != d_input]
             st.session_state.weight_history.append({"Datum": d_input, "Gewicht (kg)": w_input})
             st.session_state.pr_history = [h for h in st.session_state.pr_history if h["Datum"] != d_input]
-            st.session_state.pr_history.append({"Datum": d_input, "Pushups": pu, "Pullups": pl, "Pistol Squats": st.session_state.pistol_record, "Plank (sec)": st.session_state.plank_record})
+            st.session_state.pr_history.append({"Datum": d_input, "Pushups": pu, "Pullups": pl, "Pistol Squats": pi, "Plank (sec)": pk})
             st.session_state.user_db[st.session_state.current_user]["weight"] = w_input
             save_to_browser(); st.rerun()
 
 # --- TAB 4: VOEDING ---
 with tab4:
-    st.title("💧 Water & Voeding")
-    st.metric("Water Inname", f"{st.session_state.water_ml / 1000:.1f} / {doel_water_liters} L")
+    st.title("💧 Voeding & Hydratatie")
+    col1, col2, col3 = st.columns(3)
+    col1.metric("Water", f"{st.session_state.water_ml / 1000:.1f} / {doel_water_liters} L")
+    col2.metric("Eiwit", f"{st.session_state.eiwit_gegeten} / {doel_eiwit} g")
+    col3.metric("Calorieën", f"{st.session_state.kcal_gegeten} / {afval_kcal} kcal")
+    
+    st.markdown("### Handmatig Toevoegen")
+    add_kcal = st.number_input("Calorieën toevoegen (kcal)", min_value=0, value=0)
+    add_eiwit = st.number_input("Eiwit toevoegen (g)", min_value=0, value=0)
+    if st.button("🍽️ Voeding Opslaan"):
+        st.session_state.kcal_gegeten += add_kcal
+        st.session_state.eiwit_gegeten += add_eiwit
+        save_to_browser(); st.rerun()
+        
     if st.button("➕ 250ml Water"): st.session_state.water_ml += 250; save_to_browser(); st.rerun()
 
 # --- TAB 5: OEFENINGEN ---
@@ -324,10 +346,19 @@ with tab5:
     else:
         oefening_naam = keuze
         
+    # SCHERM ELEMENTEN VOOR SETS EN REPS HERSTELD
+    sets_input = st.number_input("Aantal sets", min_value=1, value=3)
+    reps_input = st.number_input("Herhalingen per set", min_value=1, value=10)
+        
     if st.button("💪 Log Krachtoefening"):
         if oefening_naam:
             spier_res = voorspel_spieren(oefening_naam) if keuze == "Zelf opschrijven..." else OEFENINGEN_INFO[keuze]
-            st.session_state.oefening_log.insert(0, {"Tijd": datetime.datetime.now().strftime("%H:%M"), "Oefening": oefening_naam, "Volume": "3x10", "Getrainde Spieren": spier_res})
+            st.session_state.oefening_log.insert(0, {
+                "Tijd": datetime.datetime.now().strftime("%H:%M"),
+                "Oefening": oefening_naam,
+                "Volume": f"{sets_input}x{reps_input}",
+                "Getrainde Spieren": spier_res
+            })
             st.success(f"Geregistreerd! Spieren: {spier_res}")
             save_to_browser(); time.sleep(1); st.rerun()
 
@@ -337,36 +368,14 @@ with tab5:
 # --- TAB 6: ACCOUNT ---
 with tab6:
     st.title("⚙️ Personaliseer Je Profiel")
-    
     with st.form("account_form"):
         new_name = st.text_input("Voornaam", value=user["name"])
-        
         try:
             current_bdate = datetime.datetime.strptime(user["birth_date"], "%Y-%m-%d").date()
         except:
             current_bdate = datetime.date(2006, 1, 1)
-            
         new_birth = st.date_input("Geboortedatum", value=current_bdate)
-        
-        # De leeftijd wordt op de achtergrond berekend, dus hier tonen we hem als vaste info
         st.info(f"💡 **Huidige berekende leeftijd:** {user['age']} jaar")
-        
         new_height = st.number_input("Lengte (cm)", min_value=120, max_value=230, value=int(user["height"]))
         new_weight = st.number_input("Gewicht (kg)", min_value=40.0, max_value=180.0, value=float(user["weight"]))
-        new_target = st.number_input("Doel Gewicht (kg)", min_value=40.0, max_value=180.0, value=float(user["target_weight"]))
-        new_days = st.slider("Dagen per week sporten", 0, 7, int(user["days_train"]))
-        new_dur = st.slider("Gemiddelde duur per training (minuten)", 15, 180, int(user["duration_train"]))
-        new_neck = st.number_input("Nekomtrek (cm)", min_value=20.0, max_value=60.0, value=float(user["neck"]))
-        new_waist = st.number_input("Buikomtrek (cm)", min_value=50.0, max_value=150.0, value=float(user["waist"]))
         
-        if st.form_submit_button("💾 Wijzigingen Opslaan"):
-            new_bdate_str = new_birth.strftime("%Y-%m-%d")
-            new_calculated_age = bereken_leeftijd(new_bdate_str)
-            
-            st.session_state.user_db[st.session_state.current_user].update({
-                "name": new_name, "age": new_calculated_age, "birth_date": new_bdate_str,
-                "height": new_height, "weight": new_weight, "target_weight": new_target,
-                "days_train": new_days, "duration_train": new_dur, "neck": new_neck, "waist": new_waist
-            })
-            st.success("Profiel en leeftijd succesvol bijgewerkt!")
-            save_to_browser(); time.sleep(1); st.rerun()
