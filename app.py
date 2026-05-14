@@ -136,7 +136,7 @@ def save_to_browser():
     json_str = json.dumps(payload).replace("'", "\\'")
     html(f"<script>localStorage.setItem('nutrisnap_core_data', '{json_str}');</script>", height=0)
 
-# --- 3. BROWSER DATA SYNC & AUTOMATISCHE 00:00 RESET ---
+# --- 3. BROWSER DATA SYNC ---
 query_params = st.query_params
 if "browser_data" in query_params and not st.session_state.get("synced", False):
     try:
@@ -261,6 +261,15 @@ with tab1:
     else:
         st.markdown(f"""<div class="status-box" style="border-left-color: #FF1493;"><b style="color: #FF1493;">❌ Routine incompleet ({vinkjes_teller}/{totaal_routines})</b></div>""", unsafe_allow_html=True)
 
+    # --- HISTORISCHE RANGEN EN RECORDS (HERSTELD) ---
+    st.markdown("### 🏅 Actuele PR Rangen")
+    st.markdown(f"""<div class="badge-grid">
+        <div class="badge-box"><b>Pushups</b><br>{st.session_state.pushup_record} reps</div>
+        <div class="badge-box"><b>Pullups</b><br>{st.session_state.pullup_record} reps</div>
+        <div class="badge-box"><b>Pistols</b><br>{st.session_state.pistol_record} reps</div>
+        <div class="badge-box"><b>Plank</b><br>{st.session_state.plank_record}s</div>
+    </div>""", unsafe_allow_html=True)
+
     st.markdown(f"""<div class="fat-box"><h4 style="margin:0; color:#00FFFF;">🧬 Vetpercentage: {vetpercentage:.1f}%</h4></div>""", unsafe_allow_html=True)
 
 # --- TAB 2: AI SCANNER ---
@@ -284,12 +293,17 @@ with tab3:
         w_input = st.number_input("Gewicht vandaag (kg)", value=user["weight"])
         pu = st.number_input("Max Pushups", value=st.session_state.pushup_record)
         pl = st.number_input("Max Pullups", value=st.session_state.pullup_record)
+        pi = st.number_input("Max Pistol Squats", value=st.session_state.pistol_record)
+        pk = st.number_input("Max Plankduur (sec)", value=st.session_state.plank_record)
         if st.form_submit_button("Metingen Opslaan"):
             st.session_state.pushup_record = pu
+            st.session_state.pullup_record = pl
+            st.session_state.pistol_record = pi
+            st.session_state.plank_record = pk
             st.session_state.weight_history = [h for h in st.session_state.weight_history if h["Datum"] != d_input]
             st.session_state.weight_history.append({"Datum": d_input, "Gewicht (kg)": w_input})
             st.session_state.pr_history = [h for h in st.session_state.pr_history if h["Datum"] != d_input]
-            st.session_state.pr_history.append({"Datum": d_input, "Pushups": pu, "Pullups": pl, "Pistol Squats": st.session_state.pistol_record, "Plank (sec)": st.session_state.plank_record})
+            st.session_state.pr_history.append({"Datum": d_input, "Pushups": pu, "Pullups": pl, "Pistol Squats": pi, "Plank (sec)": pk})
             st.session_state.user_db[st.session_state.current_user]["weight"] = w_input
             save_to_browser(); st.rerun()
 
@@ -364,7 +378,4 @@ with tab6:
             st.session_state.user_db[st.session_state.current_user].update({
                 "name": new_name, "age": new_calculated_age, "birth_date": new_bdate_str,
                 "height": new_height, "weight": new_weight, "target_weight": new_target,
-                "days_train": new_days, "duration_train": new_dur, "neck": new_neck, "waist": new_waist
-            })
-            st.success("Profiel en leeftijd succesvol bijgewerkt!")
-            save_to_browser(); time.sleep(1); st.rerun()
+                "days_train": new_days,
