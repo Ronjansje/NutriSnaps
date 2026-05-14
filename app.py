@@ -55,7 +55,7 @@ def parse_exercise_muscles(exercise_text):
         "bicep": {"Biceps": 1.0},
         "tricep": {"Triceps": 1.0},
         "extension": {"Triceps": 1.0},
-        "squat": {"Quadriceps": 1.0, "Hamstrings": 0.4, "Core": 0.3, "Billen": 0.5},
+        "squat": {"Quadriceps": 1.0, "Hamstrings": 0.4, "Core": 0.3},
         "leg": {"Quadriceps": 0.8, "Hamstrings": 0.8},
         "lung": {"Quadriceps": 1.0, "Hamstrings": 0.5},
         "deadlift": {"Hamstrings": 0.9, "Bovenrug": 0.7, "Core": 0.6, "Billen": 0.8},
@@ -230,7 +230,7 @@ with tab2:
     st.title("📸 AI Maaltijd Scanner")
     picture = st.camera_input("Maak een foto van je maaltijd")
     if picture is not None:
-        with st.spinner("AI scant maaltijd..."): time.sleep(1)
+        with st.spinner("AI van de maaltijd loopt..."): time.sleep(1)
         st.success("Analyse voltooid! +520 kcal, +38g Eiwit.")
         if st.button("Toevoegen aan logboek"):
             st.session_state.kcal_gegeten += 520
@@ -256,10 +256,11 @@ with tab4:
         st.session_state.water_ml += 250
         st.rerun()
 
-# --- TAB 5: WORKOUTS & EXACTE VECTOR HEATMAP ---
+# --- TAB 5: WORKOUTS & ANATOMISCHE VECTOR HEATMAP ---
 with tab5:
     st.title("🗿 Anatomische Spiergroepen Tracker")
     
+    # Initieer lege spier scores
     muscle_scores = {
         "Kaaklijn": 0, "Borst": 0, "Biceps": 0, "Triceps": 0, "Onderarmen": 0, 
         "Schouders": 0, "Core": 0, "Bovenrug": 0, "Lats": 0, "Billen": 0, "Quadriceps": 0, "Hamstrings": 0, "Kuiten": 0
@@ -271,18 +272,18 @@ with tab5:
             if m_group in muscle_scores:
                 muscle_scores[m_group] += total_vol * factor
 
-    st.markdown("### 📊 Exacte Anatomie Heatmap")
-    st.caption("Ingevulde trainingen lichten direct organisch op via de spierstructuren.")
+    st.markdown("### 📊 Gedetailleerde Anatomie Heatmap")
+    st.caption("Ingevulde trainingen lichten direct organisch op via curves.")
     
     js_data = json.dumps(muscle_scores)
     html_code = f"""
     <div style="text-align: center; background-color: #1F2937; padding: 15px; border-radius: 12px; display: flex; justify-content: space-around;">
         <div>
-            <h5 style="color: #9CA3AF; margin-top:0; font-family:sans-serif; font-size:12px; font-weight:normal;">VOORKANT</h5>
+            <h5 style="color: #FF1493; margin-top:0; font-family:sans-serif; font-size:12px;">VOORKANT</h5>
             <canvas id="frontCanvas" width="180" height="340" style="background-color:#111827; border-radius:8px;"></canvas>
         </div>
         <div>
-            <h5 style="color: #9CA3AF; margin-top:0; font-family:sans-serif; font-size:12px; font-weight:normal;">ACHTERKANT</h5>
+            <h5 style="color: #00FFFF; margin-top:0; font-family:sans-serif; font-size:12px;">ACHTERKANT</h5>
             <canvas id="backCanvas" width="180" height="340" style="background-color:#111827; border-radius:8px;"></canvas>
         </div>
     </div>
@@ -292,92 +293,127 @@ with tab5:
         
         function c(mName) {{
             let s = scores[mName] || 0;
-            if(s===0) return '#D1D5DB'; // Lichtgrijs/witachtige basislijnen exact zoals afbeelding
+            if(s===0) return '#E5E7EB'; 
             let r = s / maxS;
-            return `rgb(255, ${{Math.floor(20 * (1-r))}}, ${{Math.floor(20 * (1-r))}})`; // Rood oplichtend bij activatie
+            return '#FF0000';
         }}
         
-        // --- VOORKANT (EXACTE REPRODUCTIE) ---
+        // --- VOORKANT TEKENEN ---
         const f = document.getElementById('frontCanvas').getContext('2d');
         f.lineWidth = 1.2; f.strokeStyle = '#9CA3AF';
         
-        // Hoofd & Kaaklijn
-        f.fillStyle = c('Kaaklijn');
-        f.beginPath(); f.arc(90, 32, 11, 0, Math.PI*2); f.fill(); f.stroke();
-        f.beginPath(); f.moveTo(82, 38); f.lineTo(90, 46); f.lineTo(98, 38); f.closePath(); f.fill(); f.stroke();
+        // Hoofd & Nek outline
+        f.beginPath(); f.arc(90, 32, 11, 0, Math.PI*2); f.stroke();
+        f.strokeRect(86, 43, 8, 10);
         
-        // Trapezius / Nek
-        f.beginPath(); f.moveTo(82,43); f.lineTo(76,56); f.lineTo(104,56); f.lineTo(98,43); f.closePath(); f.stroke();
+        // Torso outline
+        f.beginPath(); f.moveTo(70,53); f.lineTo(110,53); f.lineTo(104,140); f.lineTo(76,140); f.closePath(); f.stroke();
+        // Borst- en Abs-scheidingslijnen
+        f.strokeRect(72, 58, 18, 22); f.strokeRect(90, 58, 18, 22);
+        f.strokeRect(75, 84, 15, 45); f.strokeRect(90, 84, 15, 45);
         
-        // Schouders (Deltoids)
-        f.fillStyle = c('Schouders');
-        f.beginPath(); f.moveTo(74,56); f.bezierCurveTo(62,56, 56,66, 58,80); f.bezierCurveTo(62,84, 70,80, 72,74); f.closePath(); f.fill(); f.stroke();
-        f.beginPath(); f.moveTo(106,56); f.bezierCurveTo(118,56, 124,66, 122,80); f.bezierCurveTo(118,84, 110,80, 108,74); f.closePath(); f.fill(); f.stroke();
+        // Armen outline
+        f.strokeRect(52, 53, 14, 14); f.strokeRect(114, 53, 14, 14); // Schouders
+        f.strokeRect(48, 70, 12, 38); f.strokeRect(120, 70, 12, 38); // Bovenarm
+        f.strokeRect(44, 110, 11, 40); f.strokeRect(125, 110, 11, 40); // Onderarm
         
-        // Borst (Pectoralis met anatomische middensplitsing)
-        f.fillStyle = c('Borst');
-        f.beginPath(); f.moveTo(74,57); f.lineTo(89,59); f.lineTo(89,86); f.bezierCurveTo(80,87, 72,82, 71,74); f.closePath(); f.fill(); f.stroke();
-        f.beginPath(); f.moveTo(106,57); f.lineTo(91,59); f.lineTo(91,86); f.bezierCurveTo(100,87, 108,82, 109,74); f.closePath(); f.fill(); f.stroke();
+        // Benen outline
+        f.strokeRect(70, 140, 18, 100); f.strokeRect(92, 140, 18, 100); // Bovenbenen
+        f.strokeRect(73, 246, 13, 75); f.strokeRect(94, 246, 13, 75); // Onderbenen
         
-        // Buikspieren / Core (Gedetailleerde ribben/blokken structuur)
-        f.fillStyle = c('Core');
-        f.beginPath(); f.moveTo(72,89); f.lineTo(108,89); f.lineTo(104,140); f.lineTo(76,140); f.closePath(); f.fill(); f.stroke();
-        // Anatomische binnenlijnen voor de 'sixpack' structuur
-        f.beginPath(); f.moveTo(90,89); f.lineTo(90,140); f.stroke();
-        f.beginPath(); f.moveTo(74,106); f.lineTo(106,106); b.stroke();
-        f.beginPath(); f.moveTo(75,123); f.lineTo(105,123); b.stroke();
-        
-        // Biceps & Onderarmen
-        f.fillStyle = c('Biceps');
-        f.beginPath(); f.moveTo(56,82); f.bezierCurveTo(46,92, 48,106, 54,116); f.lineTo(62,110); f.closePath(); f.fill(); f.stroke();
-        f.beginPath(); f.moveTo(124,82); f.bezierCurveTo(134,92, 132,106, 126,116); f.lineTo(118,110); f.closePath(); f.fill(); f.stroke();
-        f.fillStyle = c('Onderarmen');
-        f.beginPath(); f.moveTo(54,117); f.lineTo(44,155); f.lineTo(52,155); f.lineTo(61,117); f.closePath(); f.fill(); f.stroke();
-        f.beginPath(); f.moveTo(126,117); f.lineTo(136,155); f.lineTo(128,155); f.lineTo(119,117); f.closePath(); f.fill(); f.stroke();
-        
-        // Quadriceps (Exact gevormd zoals de rode spieren op de afbeelding)
+        // --- DYNAMISCH GEKLEURDE SPIEREN (VOORKANT) ---
         f.fillStyle = c('Quadriceps');
-        f.beginPath(); f.moveTo(72,148); f.bezierCurveTo(64,170, 64,210, 72,230); f.lineTo(87,226); f.bezierCurveTo(80,190, 84,165, 88,148); f.closePath(); f.fill(); f.stroke();
-        f.beginPath(); f.moveTo(108,148); f.bezierCurveTo(116,170, 116,210, 108,230); f.lineTo(93,226); f.bezierCurveTo(100,190, 96,165, 92,148); f.closePath(); f.fill(); f.stroke();
-        // Knieën & Schenen contouren
-        f.beginPath(); f.arc(74,238, 4, 0, Math.PI*2); f.stroke();
-        f.beginPath(); f.arc(106,238, 4, 0, Math.PI*2); f.stroke();
-        f.beginPath(); f.moveTo(74,243); f.lineTo(72,305); f.stroke();
-        f.beginPath(); f.moveTo(106,243); f.lineTo(108,305); f.stroke();
+        f.fillRect(71, 145, 16, 75); f.fillRect(93, 145, 16, 75);
+        
+        f.fillStyle = c('Borst');
+        f.fillRect(73, 59, 16, 20); f.fillRect(91, 59, 16, 20);
+        
+        f.fillStyle = c('Biceps');
+        f.fillRect(49, 72, 10, 34); f.fillRect(121, 72, 10, 34);
+        
+        f.fillStyle = c('Core');
+        f.fillRect(76, 86, 13, 41); f.fillRect(91, 86, 13, 41);
+        
+        f.fillStyle = c('Schouders');
+        f.fillRect(53, 54, 12, 12); f.fillRect(115, 54, 12, 12);
+        
+        f.fillStyle = c('Onderarmen');
+        f.fillRect(45, 112, 9, 36); f.fillRect(126, 112, 9, 36);
 
-        // --- ACHTERKANT (EXACTE REPRODUCTIE) ---
+        // --- ACHTERKANT TEKENEN ---
         const b = document.getElementById('backCanvas').getContext('2d');
         b.lineWidth = 1.2; b.strokeStyle = '#9CA3AF';
         
-        b.beginPath(); b.arc(90, 32, 11, 0, Math.PI*2); b.stroke(); 
+        b.beginPath(); b.arc(90, 32, 11, 0, Math.PI*2); b.stroke();
+        b.strokeRect(86, 43, 8, 10);
         
-        // Bovenrug / Trapezius (De anatomische V-Vorm)
-        b.fillStyle = c('Bovenrug');
-        b.beginPath(); b.moveTo(90,44); b.lineTo(68,64); b.lineTo(89,84); b.lineTo(91,84); b.lineTo(112,64); b.closePath(); b.fill(); b.stroke();
+        b.beginPath(); b.moveTo(70,53); b.lineTo(110,53); b.lineTo(104,140); b.lineTo(76,140); b.closePath(); b.stroke();
+        b.strokeRect(72, 53, 36, 42); // Rugveld
         
-        // Lats (Latissimus dorsi links & rechts)
-        b.fillStyle = c('Lats');
-        b.beginPath(); b.moveTo(66,69); b.lineTo(86,81); b.lineTo(85,124); b.lineTo(64,110); b.closePath(); b.fill(); b.stroke();
-        b.beginPath(); b.moveTo(114,69); b.lineTo(94,81); b.lineTo(95,124); b.lineTo(116,110); b.closePath(); b.fill(); b.stroke();
+        b.strokeRect(52, 53, 14, 14); b.strokeRect(114, 53, 14, 14); 
+        b.strokeRect(48, 70, 12, 38); b.strokeRect(120, 70, 12, 38); 
+        b.strokeRect(44, 110, 11, 40); b.strokeRect(125, 110, 11, 40); 
         
-        // Triceps
-        b.fillStyle = c('Triceps');
-        b.beginPath(); b.moveTo(54,80); f.bezierCurveTo(46,90, 48,102, 54,114); b.lineTo(59,106); b.closePath(); b.fill(); b.stroke();
-        b.beginPath(); b.moveTo(126,80); f.bezierCurveTo(134,90, 132,102, 126,114); b.lineTo(121,106); b.closePath(); b.fill(); b.stroke();
+        b.strokeRect(70, 140, 18, 100); b.strokeRect(92, 140, 18, 100); 
+        b.strokeRect(73, 246, 13, 75); b.strokeRect(94, 246, 13, 75); 
         
-        // Billen (Gluteus Maximus exact verdeeld)
+        // --- DYNAMISCH GEKLEURDE SPIEREN (ACHTERKANT) ---
         b.fillStyle = c('Billen');
-        b.beginPath(); b.moveTo(64,136); b.bezierCurveTo(64,124, 88,124, 89,136); b.lineTo(89,158); b.bezierCurveTo(74,158, 64,152, 64,136); b.closePath(); b.fill(); b.stroke();
-        b.beginPath(); b.moveTo(116,136); b.bezierCurveTo(116,124, 92,124, 91,136); b.lineTo(91,158); b.bezierCurveTo(106,158, 116,152, 116,136); b.closePath(); b.fill(); b.stroke();
+        b.fillRect(71, 141, 17, 30); b.fillRect(92, 141, 17, 30);
         
-        // Hamstrings (Achterkant bovenbenen)
-        b.fillStyle = c('Hamstrings');
-        b.beginPath(); f.moveTo(65,160); b.fillRect(65,162, 21, 66); b.strokeRect(65,162, 21, 66);
-        b.beginPath(); f.moveTo(94,160); b.fillRect(94,162, 21, 66); b.strokeRect(94,162, 21, 66);
-        
-        // Kuiten (Gastrocnemius split-vormig zoals de rode onderbenen op je foto)
         b.fillStyle = c('Kuiten');
-        b.beginPath(); b.moveTo(66,236); b.bezierCurveTo(60,250, 64,272, 74,276); b.lineTo(74,236); b.closePath(); b.fill(); b.stroke();
-        b.beginPath(); b.moveTo(84,236); b.bezierCurveTo(90,250, 86,272, 76,276); b.lineTo(76,236); b.closePath(); b.fill(); b.stroke();
-        b.beginPath(); b.moveTo(96,236); b.bezierCurveTo(90,250, 94,272, 104,276); b.lineTo(104,236); b.closePath(); b.fill(); b.stroke();
-        b.beginPath(); b.moveTo(114,236); b.bezierCurveTo(120,250, 116,272, 106
+        b.fillRect(74, 252, 11, 42); b.fillRect(95, 252, 11, 42);
+        
+        b.fillStyle = c('Hamstrings');
+        b.fillRect(71, 174, 16, 60); b.fillRect(93, 174, 16, 60);
+        
+        b.fillStyle = c('Lats');
+        b.fillRect(73, 75, 15, 20); b.fillRect(92, 75, 15, 20);
+        
+        b.fillStyle = c('Bovenrug');
+        b.fillRect(73, 54, 34, 20);
+        
+        b.fillStyle = c('Triceps');
+        b.fillRect(49, 72, 10, 34); b.fillRect(121, 72, 10, 34);
+    </script>
+    """
+    html(html_code, height=365)
+
+    # --- 100% SCHRIJFSYSTEEM ---
+    st.markdown("### ✍️ Schrijf je Oefening op")
+    with st.form("custom_exercise_form"):
+        user_exercise_input = st.text_input("Wat heb je gedaan?", placeholder="Bijv. Benchpress, Dumbbell Curls, Squats...")
+        
+        col1, col2 = st.columns(2)
+        with col1: s_in = st.number_input("Sets", min_value=1, value=3)
+        with col2: r_in = st.number_input("Reps", min_value=1, value=10)
+        
+        if st.form_submit_button("Log Oefening"):
+            if user_exercise_input:
+                detected_muscles = parse_exercise_muscles(user_exercise_input)
+                st.session_state.workout_log.append({
+                    "Oefening": user_exercise_input,
+                    "Sets": s_in,
+                    "Reps": r_in,
+                    "Spieren": detected_muscles
+                })
+                st.success(f"Toegevoegd! Spieren geactiveerd.")
+                time.sleep(0.4)
+                st.rerun()
+
+    if st.session_state.workout_log:
+        st.markdown("##### 📋 Oefeningen Vandaag:")
+        display_df = pd.DataFrame([
+            {"Oefening": i["Oefening"], "Sets": i["Sets"], "Reps": i["Reps"]} for i in st.session_state.workout_log
+        ])
+        st.dataframe(display_df, use_container_width=True)
+        if st.button("Logboek Resetten"):
+            st.session_state.workout_log = []
+            st.rerun()
+
+# --- TAB 6: PROFIEL ---
+with tab6:
+    st.title("⚙️ Account Instellingen")
+    if st.button("Schoon alle sessiedata op"):
+        st.session_state.clear()
+        st.rerun()
