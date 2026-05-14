@@ -230,7 +230,7 @@ with tab2:
     st.title("📸 AI Maaltijd Scanner")
     picture = st.camera_input("Maak een foto van je maaltijd")
     if picture is not None:
-        with st.spinner("AI scant maaltijd..."): time.sleep(1)
+        with st.spinner("AI van de maaltijd loopt..."): time.sleep(1)
         st.success("Analyse voltooid! +520 kcal, +38g Eiwit.")
         if st.button("Toevoegen aan logboek"):
             st.session_state.kcal_gegeten += 520
@@ -273,7 +273,7 @@ with tab5:
                 muscle_scores[m_group] += total_vol * factor
 
     st.markdown("### 📊 Gedetailleerde Anatomie Heatmap")
-    st.caption("Gebaseerd op de door jou handgeschreven oefeningen hieronder.")
+    st.caption("Ingevulde trainingen lichten direct organisch op via curves.")
     
     js_data = json.dumps(muscle_scores)
     html_code = f"""
@@ -293,83 +293,72 @@ with tab5:
         
         function c(mName) {{
             let s = scores[mName] || 0;
-            if(s===0) return '#374151'; // Standaard donkergrijs uit de afbeelding
+            if(s===0) return '#374151'; 
             let r = s / maxS;
-            // Kleurt op naar intens neon-roze/paars/oranje/blauw afhankelijk van de spiergroep ratio
             return `rgb(${{Math.floor(200 + 55*r)}}, ${{Math.floor(20 * (1-r))}}, ${{Math.floor(100 + 155*r)}})`;
         }}
         
-        // --- VOORKANT TEKENEN (CURVED & ANATOMISCH) ---
+        // --- VOORKANT TEKENEN ---
         const f = document.getElementById('frontCanvas').getContext('2d');
         f.lineWidth = 1.5; f.strokeStyle = '#FFFFFF';
         
-        // Body Outline (Subtiele achtergrondlijnen voor anatomische vorm)
-        f.beginPath(); f.arc(90, 30, 14, 0, Math.PI*2); f.stroke(); // Hoofd
+        f.beginPath(); f.arc(90, 30, 14, 0, Math.PI*2); f.stroke(); 
         
-        // Kaaklijn
         f.fillStyle = c('Kaaklijn');
         f.beginPath(); f.moveTo(80,36); f.lineTo(90,44); f.lineTo(100,36); f.closePath(); f.fill(); f.stroke();
         
-        // Schouders (Deltoids - Organische rondingen)
         f.fillStyle = c('Schouders');
         f.beginPath(); f.arc(58, 70, 11, 0, Math.PI*2); f.fill(); f.stroke();
         f.beginPath(); f.arc(122, 70, 11, 0, Math.PI*2); f.fill(); f.stroke();
         
-        // Borstspieren (Anatomische curves)
         f.fillStyle = c('Borst');
         f.beginPath(); f.moveTo(70,64); f.bezierCurveTo(75,60, 85,60, 89,64); f.lineTo(89,88); f.lineTo(70,88); f.closePath(); f.fill(); f.stroke();
         f.beginPath(); f.moveTo(110,64); f.bezierCurveTo(105,60, 95,60, 91,64); f.lineTo(91,88); f.lineTo(110,88); f.closePath(); f.fill(); f.stroke();
         
-        // Abs / Core (Zespuntsverdeling gegroepeerd)
         f.fillStyle = c('Core');
         f.beginPath(); f.moveTo(72,94); f.lineTo(108,94); f.lineTo(104,142); f.lineTo(76,142); f.closePath(); f.fill(); f.stroke();
         
-        // Biceps (Spierballen anatomisch gevormd met curves)
         f.fillStyle = c('Biceps');
         f.beginPath(); f.moveTo(46,80); f.bezierCurveTo(40,92, 42,104, 46,114); f.lineTo(54,110); f.lineTo(54,82); f.closePath(); f.fill(); f.stroke();
         f.beginPath(); f.moveTo(134,80); f.bezierCurveTo(140,92, 138,104, 134,114); f.lineTo(126,110); f.lineTo(126,82); f.closePath(); f.fill(); f.stroke();
         
-        # Onderarmen
         f.fillStyle = c('Onderarmen');
         f.fillRect(40,118, 11, 36); f.strokeRect(40,118, 11, 36);
         f.fillRect(129,118, 11, 36); f.strokeRect(129,118, 11, 36);
         
-        // Quadriceps (Dijen anatomisch gebogen)
         f.fillStyle = c('Quadriceps');
         f.beginPath(); f.moveTo(70,150); f.lineTo(88,150); f.lineTo(84,230); f.lineTo(66,230); f.closePath(); f.fill(); f.stroke();
         f.beginPath(); f.moveTo(110,150); f.lineTo(92,150); f.lineTo(96,230); f.lineTo(114,230); f.closePath(); f.fill(); f.stroke();
 
-        // --- ACHTERKANT TEKENEN (ANATOMISCH) ---
+        // --- ACHTERKANT TEKENEN ---
         const b = document.getElementById('backCanvas').getContext('2d');
         b.lineWidth = 1.5; b.strokeStyle = '#FFFFFF';
         
         b.beginPath(); b.arc(90, 30, 14, 0, Math.PI*2); b.stroke();
         
-        // Bovenrug (Trapezius V-Vorm zoals de rode spier op jouw foto)
         b.fillStyle = c('Bovenrug');
         b.beginPath(); b.moveTo(90,46); b.lineTo(66,66); b.lineTo(114,66); b.closePath(); b.fill(); b.stroke();
         
-        // Lats (Rugvleugels links/rechts)
         b.fillStyle = c('Lats');
-        b.beginPath(); b.moveTo(66,72); b.lineTo(88,72); b.lineTo(86,124); b.lineTo(62,106); f.closePath(); b.fill(); b.stroke();
-        b.beginPath(); b.moveTo(114,72); b.lineTo(92,72); b.lineTo(94,124); b.lineTo(118,106); f.closePath(); b.fill(); b.stroke();
+        b.beginPath(); b.moveTo(66,72); b.lineTo(88,72); b.lineTo(86,124); b.lineTo(62,106); b.closePath(); b.fill(); b.stroke();
+        b.beginPath(); b.moveTo(114,72); b.lineTo(92,72); b.lineTo(94,124); b.lineTo(118,106); b.closePath(); b.fill(); b.stroke();
         
-        // Triceps (Achterkant armen)
         b.fillStyle = c('Triceps');
         b.fillRect(45,80, 10, 34); b.strokeRect(45,80, 10, 34);
         b.fillRect(125,80, 10, 34); b.strokeRect(125,80, 10, 34);
         
-        // Billen (Glutes - anatomische curves rondingen)
+        b.fillStyle = c('Onderarmen');
+        b.fillRect(40,118, 11, 36); b.strokeRect(40,118, 11, 36);
+        b.fillRect(129,118, 11, 36); b.strokeRect(129,118, 11, 36);
+        
         b.fillStyle = c('Billen');
         b.beginPath(); b.arc(76, 144, 13, 0, Math.PI*2); b.fill(); b.stroke();
         b.beginPath(); b.arc(104, 144, 13, 0, Math.PI*2); b.fill(); b.stroke();
         
-        // Hamstrings (Achterkant bovenbenen)
         b.fillStyle = c('Hamstrings');
         b.fillRect(65,162, 20, 68); b.strokeRect(65,162, 20, 68);
         b.fillRect(95,162, 20, 68); b.strokeRect(95,162, 20, 68);
         
-        // Kuiten (Calves - Diamantvormige spierlijnen onderbeen)
         b.fillStyle = c('Kuiten');
         b.beginPath(); b.moveTo(74,236); b.lineTo(84,250); b.lineTo(74,280); b.lineTo(66,250); b.closePath(); b.fill(); b.stroke();
         b.beginPath(); b.moveTo(106,236); b.lineTo(114,250); b.lineTo(106,280); b.lineTo(98,250); b.closePath(); b.fill(); b.stroke();
