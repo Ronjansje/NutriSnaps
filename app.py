@@ -256,7 +256,7 @@ with tab4:
         st.session_state.water_ml += 250
         st.rerun()
 
-# --- TAB 5: WORKOUTS & CURVED VEKTOR HEATMAP ---
+# --- TAB 5: WORKOUTS & DYNAMISCHE VEKTOR HEATMAP ---
 with tab5:
     st.title("🗿 Anatomische Spiergroepen Tracker")
     
@@ -271,7 +271,8 @@ with tab5:
             if m_group in muscle_scores:
                 muscle_scores[m_group] += total_vol * factor
 
-    st.markdown("### 📊 Organisch Afgeronde Anatomie Kaart")
+    st.markdown("### 📊 Realistische Anatomische Vector Heatmap")
+    st.caption("Gebaseerd op organische curven en lijnen conform het medische spierplaatje.")
     
     js_data = json.dumps(muscle_scores)
     html_code = f"""
@@ -291,94 +292,80 @@ with tab5:
         
         function c(mName) {{
             let s = scores[mName] || 0;
-            if(s===0) return '#374151'; 
-            return '#FF0000'; // Rood oplichten conform de gewenste stijl
+            if(s===0) return '#D1D5DB'; // Lichtgrijs conform de achtergrond van de afbeelding
+            return '#E63946'; // Strikt rood oplichten conform het plaatje
         }}
         
-        // --- HELP FUNCTIE VOOR AFGERONDE RECHTHOEKEN (SPIEREN) ---
-        function roundRect(ctx, x, y, width, height, radius, fillStyle) {{
-            ctx.fillStyle = fillStyle;
-            ctx.beginPath();
-            ctx.moveTo(x + radius, y);
-            ctx.lineTo(x + width - radius, y);
-            ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
-            ctx.lineTo(x + width, y + height - radius);
-            ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
-            ctx.lineTo(x + radius, y + height);
-            ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
-            ctx.lineTo(x, y + radius);
-            ctx.quadraticCurveTo(x, y, x + radius, y);
-            ctx.closePath();
-            ctx.fill();
-            ctx.stroke();
-        }}
-        
-        // --- VOORKANT TEKENEN ---
+        // --- VOORKANT (REALISTISCHE CURVES) ---
         const f = document.getElementById('frontCanvas').getContext('2d');
-        f.lineWidth = 1.5; f.strokeStyle = '#9CA3AF';
+        f.lineWidth = 1.2; f.strokeStyle = '#4B5563';
         
-        // Organisch Hoofd & Kaaklijn
-        f.beginPath(); f.arc(90, 32, 12, 0, Math.PI*2); f.stroke();
-        f.fillStyle = c('Kaaklijn');
-        f.beginPath(); f.moveTo(82, 38); f.quadraticCurveTo(90, 46, 98, 38); f.stroke();
+        // Hoofd, nek, trapezius outline
+        f.beginPath(); f.arc(90, 32, 11, 0, Math.PI*2); f.stroke();
         
-        // Organische Schouders (Ronde bollen)
+        // Borst (Bezier Curves links en rechts)
+        f.fillStyle = c('Borst');
+        f.beginPath(); f.moveTo(90,62); f.bezierCurveTo(80,55, 66,60, 66,74); f.bezierCurveTo(66,86, 80,90, 90,85); f.closePath(); f.fill(); f.stroke();
+        f.beginPath(); f.moveTo(90,62); f.bezierCurveTo(100,55, 114,60, 114,74); f.bezierCurveTo(114,86, 100,90, 90,85); f.closePath(); f.fill(); f.stroke();
+        
+        // Schouders (Gecurvde Delts)
         f.fillStyle = c('Schouders');
-        f.beginPath(); f.arc(56, 64, 10, 0, Math.PI*2); f.fill(); f.stroke();
-        f.beginPath(); f.arc(124, 64, 10, 0, Math.PI*2); f.fill(); f.stroke();
+        f.beginPath(); f.moveTo(64,62); f.bezierCurveTo(52,64, 50,78, 60,84); f.bezierCurveTo(64,80, 64,66, 64,62); f.fill(); f.stroke();
+        f.beginPath(); f.moveTo(116,62); f.bezierCurveTo(128,64, 130,78, 120,84); f.bezierCurveTo(116,80, 116,66, 116,62); f.fill(); f.stroke();
         
-        // Borst (Afgeronde spiergroepen)
-        roundRect(f, 69, 58, 20, 24, 6, c('Borst'));
-        roundRect(f, 91, 58, 20, 24, 6, c('Borst'));
+        // Biceps (Druppelvormige organische spierballen)
+        f.fillStyle = c('Biceps');
+        f.beginPath(); f.moveTo(56,86); f.bezierCurveTo(46,94, 48,112, 56,116); f.closePath(); f.fill(); f.stroke();
+        f.beginPath(); f.moveTo(124,86); f.bezierCurveTo(134,94, 132,112, 124,116); f.closePath(); f.fill(); f.stroke();
         
-        // Biceps (Afgeronde, ovale spierballen)
-        roundRect(f, 44, 74, 11, 32, 5, c('Biceps'));
-        roundRect(f, 125, 74, 11, 32, 5, c('Biceps'));
+        // Core / Abs (Gegolfde anatomische buikwand)
+        f.fillStyle = c('Core');
+        f.beginPath(); f.moveTo(74,90); f.lineTo(106,90); f.bezierCurveTo(104,112, 102,130, 98,142); f.lineTo(82,142); f.bezierCurveTo(78,130, 76,112, 74,90); f.closePath(); f.fill(); f.stroke();
         
-        // Abs / Core (Afgerond torsoveld)
-        roundRect(f, 72, 86, 36, 50, 8, c('Core'));
+        // Onderarmen
+        f.fillStyle = c('Onderarmen');
+        f.beginPath(); f.moveTo(54,118); f.bezierCurveTo(46,126, 48,146, 52,154); f.closePath(); f.fill(); f.stroke();
+        f.beginPath(); f.moveTo(126,118); f.bezierCurveTo(134,126, 132,146, 128,154); f.closePath(); f.fill(); f.stroke();
         
-        // Onderarmen (Gestroomlijnd ovaal verloop)
-        roundRect(f, 42, 112, 10, 34, 4, c('Onderarmen'));
-        roundRect(f, 128, 112, 10, 34, 4, c('Onderarmen'));
-        
-        // Quadriceps (Dijen met organische rondingen)
-        roundRect(f, 68, 142, 20, 85, 9, c('Quadriceps'));
-        roundRect(f, 92, 142, 20, 85, 9, c('Quadriceps'));
+        // Quadriceps (Anatomisch gedetailleerde dijen)
+        f.fillStyle = c('Quadriceps');
+        f.beginPath(); f.moveTo(72,146); f.bezierCurveTo(62,170, 64,210, 76,234); f.bezierCurveTo(84,210, 84,170, 72,146); f.closePath(); f.fill(); f.stroke();
+        f.beginPath(); f.moveTo(108,146); f.bezierCurveTo(118,170, 116,210, 104,234); f.bezierCurveTo(96,210, 96,170, 108,146); f.closePath(); f.fill(); f.stroke();
 
-        // --- ACHTERKANT TEKENEN ---
+        // --- ACHTERKANT (REALISTISCHE CURVES) ---
         const b = document.getElementById('backCanvas').getContext('2d');
-        b.lineWidth = 1.5; b.strokeStyle = '#9CA3AF';
+        b.lineWidth = 1.2; b.strokeStyle = '#4B5563';
         
-        b.beginPath(); b.arc(90, 32, 12, 0, Math.PI*2); b.stroke();
+        b.beginPath(); b.arc(90, 32, 11, 0, Math.PI*2); b.stroke();
         
-        // Bovenrug & Nekovergang
-        roundRect(b, 68, 54, 44, 22, 6, c('Bovenrug'));
+        // Bovenrug (Trapezius diamantvorm)
+        b.fillStyle = c('Bovenrug');
+        b.beginPath(); b.moveTo(90,46); b.lineTo(72,66); b.lineTo(90,84); b.lineTo(108,66); b.closePath(); b.fill(); b.stroke();
         
-        // Lats (Vleugels aan de zijkant)
-        roundRect(b, 66, 78, 22, 34, 6, c('Lats'));
-        roundRect(b, 92, 78, 22, 34, 6, c('Lats'));
+        // Lats (Rugvleugels organisch naar binnen buigend)
+        b.fillStyle = c('Lats');
+        b.beginPath(); b.moveTo(70,72); b.bezierCurveTo(62,90, 66,114, 82,122); b.lineTo(82,72); b.closePath(); b.fill(); b.stroke();
+        b.beginPath(); b.moveTo(110,72); b.bezierCurveTo(118,90, 114,114, 98,122); b.lineTo(98,72); b.closePath(); b.fill(); b.stroke();
         
         // Triceps
-        roundRect(b, 44, 74, 11, 32, 5, c('Triceps'));
-        roundRect(b, 125, 74, 11, 32, 5, c('Triceps'));
+        b.fillStyle = c('Triceps');
+        b.beginPath(); b.moveTo(56,84); f.bezierCurveTo(48,92, 48,110, 56,114); b.closePath(); b.fill(); b.stroke();
+        b.beginPath(); b.moveTo(124,84); f.bezierCurveTo(132,92, 132,110, 124,114); b.closePath(); b.fill(); b.stroke();
         
-        // Onderarmen Achter
-        roundRect(b, 42, 112, 10, 34, 4, c('Onderarmen'));
-        roundRect(b, 128, 112, 10, 34, 4, c('Onderarmen'));
-        
-        // Billen (Perfect ronde anatomische curves)
+        // Billen (Ronde glutes contouren)
         b.fillStyle = c('Billen');
-        b.beginPath(); b.arc(77, 150, 13, 0, Math.PI*2); b.fill(); b.stroke();
-        b.beginPath(); b.arc(103, 150, 13, 0, Math.PI*2); b.fill(); b.stroke();
+        b.beginPath(); b.arc(77, 148, 12, 0, Math.PI*2); b.fill(); b.stroke();
+        b.beginPath(); b.arc(103, 148, 12, 0, Math.PI*2); b.fill(); b.stroke();
         
-        // Hamstrings
-        roundRect(b, 67, 166, 21, 70, 8, c('Hamstrings'));
-        roundRect(b, 92, 166, 21, 70, 8, c('Hamstrings'));
+        // Hamstrings (Gestroomlijnd verloop)
+        b.fillStyle = c('Hamstrings');
+        b.beginPath(); b.moveTo(66,164); b.bezierCurveTo(62,190, 66,220, 78,234); b.lineTo(84,164); b.closePath(); b.fill(); b.stroke();
+        b.beginPath(); b.moveTo(114,164); b.bezierCurveTo(118,190, 114,220, 102,234); b.lineTo(96,164); b.closePath(); b.fill(); b.stroke();
         
-        // Kuiten (Anatomisch ovale spierbuiken)
-        roundRect(b, 72, 248, 13, 50, 6, c('Kuiten'));
-        roundRect(b, 95, 248, 13, 50, 6, c('Kuiten'));
+        // Kuiten (Geprononceerde diamant-ovale spierbuiken)
+        b.fillStyle = c('Kuiten');
+        b.beginPath(); b.moveTo(76,242); b.bezierCurveTo(64,256, 68,284, 76,296); b.bezierCurveTo(82,284, 82,256, 76,242); b.closePath(); b.fill(); b.stroke();
+        b.beginPath(); b.moveTo(104,242); b.bezierCurveTo(116,256, 112,284, 104,296); b.bezierCurveTo(98,284, 98,256, 104,242); b.closePath(); b.fill(); b.stroke();
     </script>
     """
     html(html_code, height=365)
