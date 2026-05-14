@@ -3,6 +3,7 @@ import pandas as pd
 import datetime
 import hashlib
 import time
+import sqlite3
 
 # --- 1. CONFIGURATIE & DONKERE MODUS ---
 st.set_page_config(page_title="NutriSnap AI Pro", page_icon="💪", layout="centered")
@@ -20,44 +21,66 @@ st.markdown("""
     .stTabs [data-baseweb="tab"] { color: #9CA3AF; }
     .stTabs [data-baseweb="tab"][aria-selected="true"] { color: #FF1493; }
     
-    /* Styling voor de Badge Boxen */
-    .badge-grid {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 10px;
-        margin-bottom: 15px;
-    }
-    .badge-box {
-        background-color: #1F2937;
-        padding: 12px;
-        border-radius: 10px;
-        border-top: 4px solid #FF1493;
-        text-align: center;
-    }
+    .badge-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px; }
+    .badge-box { background-color: #1F2937; padding: 12px; border-radius: 10px; border-top: 4px solid #FF1493; text-align: center; }
     </style>
 """, unsafe_allow_html=True)
 
-# --- 2. LOKALE DATABASE IN HET GEHEUGEN ---
-if "user_db" not in st.session_state:
-    st.session_state.user_db = {} 
+# --- 2. PERMANENTE BESTANDSDATABASE (SQLite) ---
+def init_db():
+    conn = sqlite3.connect('nutrisnap_permanent.db')
+    c = conn.cursor()
+    # Maakt een permanente tabel voor gebruikers als die nog niet bestaat
+    c.execute('''CREATE TABLE IF NOT EXISTS users 
+                 (email TEXT PRIMARY KEY, password TEXT, name TEXT, age INTEGER, height REAL, weight REAL, target_weight REAL, days_train INTEGER, duration_train INTEGER)''')
+    conn.commit()
+    conn.close()
 
 def make_hashes(password):
     return hashlib.sha256(str.encode(password)).hexdigest()
 
+def db_add_user(email, password, name, age, height, weight, target_weight, days_train, duration_train):
+    conn = sqlite3.connect('nutrisnap_permanent.db')
+    c = conn.cursor()
+    try:
+        c.execute('INSERT INTO users VALUES (?,?,?,?,?,?,?,?,?)', (email, make_hashes(password), name, age, height, weight, target_weight, days_train, duration_train))
+        conn.commit()
+        return True
+    except sqlite3.IntegrityError:
+        return False # E-mail bestaat al
+    finally:
+        conn.close()
+
+def db_login_user(email, password):
+    conn = sqlite3.connect('nutrisnap_permanent.db')
+    c = conn.cursor()
+    hashed_pwd = make_hashes(password)
+    c.execute('SELECT password FROM users WHERE email = ?', (email,))
+    data = c.fetchone()
+    conn.close()
+    if data and data[0] == hashed_pwd:
+        return True
+    return False
+
+def db_get_user_data(email):
+    conn = sqlite3.connect('nutrisnap_permanent.db')
+    c = conn.cursor()
+    c.execute('SELECT age, height, weight, target_weight, days_train, duration_train, name FROM users WHERE email = ?', (email,))
+    data = c.fetchone()
+    conn.close()
+    return data
+
+# Start de database op bij het laden van de app
+init_db()
+
 # --- 3. TRACKING INITIALISATIE ---
-if "logged_in" not in st.session_state:
-    st.session_state.logged_in = False
-    st.session_state.current_user = ""
-if "water_ml" not in st.session_state:
-    st.session_state.water_ml = 0
-if "kcal_gegeten" not in st.session_state:
-    st.session_state.kcal_gegeten = 0
-if "eiwit_gegeten" not in st.session_state:
-    st.session_state.eiwit_gegeten = 0
-if "kaaklijn_gedaan" not in st.session_state:
-    st.session_state.kaaklijn_gedaan = False
-if "oefening_gedaan" not in st.session_state:
-    st.session_state.oefening_gedaan = False
+if "logged_in" not in st.session_state: st.session_state.logged_in = False
+if "current_user" not in st.session_state: st.session_state.current_user = ""
+if "water_ml" not in st.session_state: st.session_state.water_ml = 0
+if "kcal_gegeten" not in st.session_state: st.session_state.kcal_gegeten = 0
+if "eiwit_gegeten" not in st.session_state: st.session_state.eiwit_gegeten = 0
+if "kaaklijn_gedaan" not in st.session_state: st.session_state.kaaklijn_gedaan = False
+if "oefening_gedaan" not in st.session_state: st.session_state.oefening_gedaan = False
 
 if "pushup_record" not in st.session_state: st.session_state.pushup_record = 0
 if "pullup_record" not in st.session_state: st.session_state.pullup_record = 0
@@ -67,10 +90,10 @@ if "plank_record" not in st.session_state: st.session_state.plank_record = 0
 # --- 4. INLOG / REGISTRATIE SCHERM ---
 if not st.session_state.logged_in:
     st.title("📸 NutriSnap AI")
-    st.caption("Veilig inloggen op jouw toestel")
+    st.caption("Veilig en permanent inloggen op jouw toestel")
         
     auth_option = st.radio("Kies een optie:", ["Inloggen", "Account Aanmaken"], horizontal=True)
-    email_input = st.text_input("E-mailadres")
+    email_input = st.text_input("E-mailadres").strip().lower()
     password_input = st.text_input("Wachtwoord", type="password")
     
     if auth_option == "Account Aanmaken":
@@ -84,13 +107,8 @@ if not st.session_state.logged_in:
         
         if st.button("Registreren"):
             if "@" in email_input and password_input and name:
-                if email_input not in st.session_state.user_db:
-                    st.session_state.user_db[email_input] = {
-                        "password": make_hashes(password_input), "name": name, "age": age,
-                        "height": height, "weight": weight, "target_weight": target_weight,
-                        "days_train": days_train, "duration_train": duration_train
-                    }
-                    st.success("Account succesvol aangemaakt! Je kunt nu inloggen.")
+                if db_add_user(email_input, password_input, name, age, height, weight, target_weight, days_train, duration_train):
+                    st.success("Account permanent opgeslagen! Je kunt nu inloggen.")
                 else:
                     st.error("Dit e-mailadres is al geregistreerd.")
             else:
@@ -98,28 +116,29 @@ if not st.session_state.logged_in:
                 
     elif auth_option == "Inloggen":
         if st.button("Inloggen"):
-            hashed_pwd = make_hashes(password_input)
-            if email_input in st.session_state.user_db and st.session_state.user_db[email_input]["password"] == hashed_pwd:
+            if db_login_user(email_input, password_input):
                 st.session_state.logged_in = True
                 st.session_state.current_user = email_input
                 st.rerun()
             else:
-                st.error("Onjuiste e-mail of wachtwoord.")
+                st.error("Onjuiste e-mail of wachtwoord. Probeer het nog eens.")
     st.stop()
 
-# --- 5. HOOFDAPPLICATIE ---
-user = st.session_state.user_db[st.session_state.current_user]
+# --- 5. HOOFDAPPLICATIE (NA LOGIN) ---
+# Haal je gegevens nu veilig en permanent uit het database-bestand
+u_age, u_height, u_weight, u_target_weight, u_days, u_duration, u_name = db_get_user_data(st.session_state.current_user)
 
 # Gezondheidsberekeningen
-bmr = (10 * user["weight"]) + (6.25 * user["height"]) - (5 * user["age"]) + 5
-activity = 1.2 if user["days_train"] <= 1 else 1.375 if user["days_train"] <= 3 else 1.55 if user["days_train"] <= 5 else 1.725
-extra_kcal = (user["duration_train"] * 6 * user["days_train"]) / 7
+bmr = (10 * u_weight) + (6.25 * u_height) - (5 * u_age) + 5
+activity = 1.2 if u_days <= 1 else 1.375 if u_days <= 3 else 1.55 if u_days <= 5 else 1.725
+extra_kcal = (u_duration * 6 * u_days) / 7
 afval_kcal = int((bmr * activity) + extra_kcal - 500)
-doel_eiwit = int(user["weight"] * 2.0)
-doel_water_liters = round((user["weight"] * 0.035) + ((user["duration_train"] * 0.01 * user["days_train"]) / 7), 1)
+doel_eiwit = int(u_weight * 2.0)
+doel_water_liters = round((u_weight * 0.035) + ((u_duration * 0.01 * u_days) / 7), 1)
 
+# Zijmenu instellen
 st.sidebar.title("✨ NutriSnap Pro")
-st.sidebar.markdown(f"Ingelogd als: **{user['name']}**")
+st.sidebar.markdown(f"Ingelogd als: **{u_name}**")
 st.sidebar.markdown(f"""
 📋 **Jouw Dagelijkse Doelen:**
 * 🔥 **Calorieën:** `{afval_kcal} kcal`
@@ -132,17 +151,20 @@ if st.sidebar.button("Uitloggen"):
     st.session_state.current_user = ""
     st.rerun()
 
+# Dashboard tabs
 tab1, tab2, tab3, tab4, tab5 = st.tabs(["🏠 Hoofdscherm", "📸 AI Scanner", "📈 Voortgang", "💧 Water & Eten", "🗿 Oefeningen"])
 
-# --- TAB 1: HOOFDSCHERM (DASHBOARD) ---
+# --- TAB 1: HOOFDSCHERM ---
 with tab1:
-    st.title(f"Hoi {user['name']}! 👋")
-    
+    st.title(f"Hoi {u_name}! 👋")
+    st.caption("Jouw overzicht van vandaag:")
+
+    # Wekelijkse test melding
     vandaag = datetime.date.today()
     if vandaag.weekday() == 6: 
         st.error("🚨 **TESTDAG!** Het is zondag. Ga snel naar 'Voortgang' en test je records!")
     else:
-        st.info(f"📅 Nog **{6 - vandaag.weekday()} dagen** tot de wekelijkse calisthenics-testdag (zondag).")
+        st.info(f"📅 Nog **{6 - vandaag.weekday()} dagen** tot de wekelijkse calisthenics-testday (zondag).")
 
     st.markdown("### 🏅 Jouw Mijlpalen & Rangen")
     
@@ -162,7 +184,6 @@ with tab1:
     pl_sec = st.session_state.plank_record
     pl_badge = "🥉 Plankje" if pl_sec <= 45 else "🥈 Stabiele Basis" if pl_sec <= 90 else "🥇 IJzeren Kern" if pl_sec <= 179 else "💎 Core King" if pl_sec <= 299 else "👑 ONBREEKBARE MUUR"
 
-    # HTML Grid voor 4 badgeboxen (Nu met duidelijke tekst per been)
     st.markdown(f"""
     <div class="badge-grid">
         <div class="badge-box">🌟 <b>Borst (Push)</b><br><span style='color:#FF1493;'>{p_badge}</span><br><small>{p_reps} reps</small></div>
@@ -181,7 +202,8 @@ with tab1:
     col1, col2 = st.columns(2)
     with col1:
         st.write("**Calorieën Status**")
-        st.dataframe(pd.DataFrame({"Status": ["Gegeten", "Nog"], "Kcal": [st.session_state.kcal_gegeten, resterend_kcal]}), hide_index=True, use_container_width=True) 
+        df_kcal = pd.DataFrame({"Status": ["Gegeten", "Nog"], "Kcal": [st.session_state.kcal_gegeten, resterend_kcal]})
+        st.dataframe(df_kcal, hide_index=True, use_container_width=True) 
     with col2:
         st.write("**Eiwitten Status**")
         df_eiwit = pd.DataFrame({"Status": ["Binnen", "Nog"], "Gram": [st.session_state.eiwit_gegeten, resterend_eiwit]})
@@ -192,7 +214,7 @@ with tab1:
     with col_m2: st.metric(label="Nog te drinken", value=f"{resterend_water:.1f} L", delta=f"Doel: {doel_water_liters}L")
 
     st.markdown("### 📋 Checklist")
-    st.success("✅ Kaaklijntraining voltooid!") if st.session_state.kaaklijn_gedaan else st.info("❌ Je moet je kaaklijnoefeningen nog doen vandaag.")
+    st.success("✅ Kaaklijntraining voltooid!") if st.session_state.kaaklijn_gedaan else st.info("❌ Je moet je kaaklijnoefeningen noch doen vandaag.")
     st.success("✅ Krachttraining geregistreerd!") if st.session_state.oefening_gedaan else st.warning("⚠️ Voer je workout van vandaag noch in via tekst.")
 
 # --- TAB 2: AI SCANNER ---
@@ -211,7 +233,7 @@ with tab2:
 with tab3:
     st.header("📈 Voortgang & Groei")
     vandaag = datetime.date.today()
-    st.line_chart(pd.DataFrame({"Datum": [vandaag - datetime.timedelta(days=i) for i in range(4, -1, -1)], "Gewicht (kg)": [user['weight']+1.0, user['weight']+0.7, user['weight']+0.4, user['weight']+0.2, user['weight']]}).set_index("Datum"))
+    st.line_chart(pd.DataFrame({"Datum": [vandaag - datetime.timedelta(days=i) for i in range(4, -1, -1)], "Gewicht (kg)": [u_weight+1.0, u_weight+0.7, u_weight+0.4, u_weight+0.2, u_weight]}).set_index("Datum"))
     
     st.subheader("📊 Wekelijkse Records Invoeren")
     st.caption("Vul hier je behaalde prestaties in om je levels te verhogen!")
@@ -219,8 +241,7 @@ with tab3:
     c1, c2 = st.columns(2)
     with c1:
         n_pushups = st.number_input("Borst: Max Push-ups (Reps)", min_value=0, value=st.session_state.pushup_record)
-        # HIER IS DE UIDRUKKELIJKE VERMELDING VOOR PISTOL SQUATS PER BEEN TOEGEVOEGD
-        n_pistols = st.number_input("Benen: Max Pistol Squats (Reps per been)", min_value=0, value=st.session_state.pistol_record, help="Tel het aantal herhalingen van je zwakste been")
+        n_pistols = st.number_input("Benen: Max Pistol Squats (Reps per been)", min_value=0, value=st.session_state.pistol_record)
     with c2:
         n_pullups = st.number_input("Rug: Max Pull-ups (Reps)", min_value=0, value=st.session_state.pullup_record)
         n_plank = st.number_input("Core: Max Plank (Seconden)", min_value=0, value=st.session_state.plank_record)
@@ -260,7 +281,7 @@ with tab4:
         st.session_state.eiwit_gegeten += heiwit
         st.success("Handmatig bijgewerkt!")
 
-# --- TAB 5: EXERCISES & LIVE KAAKLIJN TIMER ---
+# --- TAB 5: OEFENINGEN & LIVE KAAKLIJN TIMER ---
 with tab5:
     st.header("🗿 Dagelijkse Trainingen")
     st.subheader("Dagelijkse Kaaklijntraining")
@@ -281,3 +302,4 @@ with tab5:
         if user_oefening:
             st.session_state.oefening_gedaan = True
             st.success("Workout verwerkt!")
+
