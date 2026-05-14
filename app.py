@@ -113,7 +113,6 @@ if not st.session_state.logged_in:
 # --- 5. HOOFDAPPLICATIE ---
 user = st.session_state.user_db[st.session_state.current_user]
 
-# Herberekening van de leeftijd op basis van opgeslagen geboortedatum indien aanwezig
 if "birthday" in user:
     b_date = datetime.datetime.strptime(user["birthday"], "%Y-%m-%d").date()
     user["age"] = calculate_age(b_date)
@@ -151,7 +150,6 @@ if st.sidebar.button("Uitloggen"):
     st.session_state.current_user = ""
     st.rerun()
 
-# Tabs inclusief het nieuwe Profiel tabblad
 tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs(["🏠 Hoofdscherm", "📸 AI Scanner", "📈 Voortgang", "💧 Water & Eten", "🗿 Oefeningen", "⚙️ Profiel"])
 
 # --- TAB 1: HOOFDSCHERM ---
@@ -274,7 +272,6 @@ with tab6:
     st.title("⚙️ Account & Profiel Aanpassen")
     st.caption("Wijzig hier je persoonlijke instellingen. Je doelen worden direct opnieuw berekend.")
     
-    # Bestaande data ophalen voor default waarden
     current_birthday = datetime.datetime.strptime(user.get("birthday", "2000-01-01"), "%Y-%m-%d").date()
     
     with st.form("profile_form"):
@@ -297,7 +294,6 @@ with tab6:
         if submit_profile:
             if new_name:
                 age_calc = calculate_age(new_birthday)
-                # Update de database met de nieuwe waarden
                 st.session_state.user_db[st.session_state.current_user].update({
                     "name": new_name,
                     "birthday": new_birthday.strftime("%Y-%m-%d"),
