@@ -299,10 +299,10 @@ with tab1:
     st.markdown("### 🏅 Jouw Nederlandse Rangen & Badges")
     st.markdown(f"""
     <div class="badge-grid">
-        <div class="badge-box"><b>Opdrukken</b><br><small>{krijf_pushup_badge(st.session_state.pushup_record)} ({st.session_state.pushup_record} reps)</small></div>
-        <div class="badge-box"><b>Optrekken</b><br><small>{krijf_pullup_badge(st.session_state.pullup_record)} ({st.session_state.pullup_record} reps)</small></div>
-        <div class="badge-box"><b>Pistol Squats</b><br><small>{krijf_pistol_badge(st.session_state.pistol_record)} ({st.session_state.pistol_record} reps)</small></div>
-        <div class="badge-box"><b>Plank</b><br><small>{krijf_plank_badge(st.session_state.plank_record)} ({st.session_state.plank_record}s)</small></div>
+        <div class="badge-box"><b>Opdrukken</b><br><small>{krijg_pushup_badge(st.session_state.pushup_record)} ({st.session_state.pushup_record} reps)</small></div>
+        <div class="badge-box"><b>Optrekken</b><br><small>{krijg_pullup_badge(st.session_state.pullup_record)} ({st.session_state.pullup_record} reps)</small></div>
+        <div class="badge-box"><b>Pistol Squats</b><br><small>{krijg_pistol_badge(st.session_state.pistol_record)} ({st.session_state.pistol_record} reps)</small></div>
+        <div class="badge-box"><b>Plank</b><br><small>{krijg_plank_badge(st.session_state.plank_record)} ({st.session_state.plank_record}s)</small></div>
     </div>
     """, unsafe_allow_html=True)
 
