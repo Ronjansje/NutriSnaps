@@ -42,42 +42,38 @@ def bereken_leeftijd(geboortedatum_str):
     except:
         return 20
 
-# Epische Nederlandse Rangen Systeem (7 Niveaus per oefening)
-def bepaal_pushup_rang(reps):
-    if reps < 15: return "🥚 Groentje"
-    elif reps < 30: return "⚔️ Straatstrijder"
-    elif reps < 45: return "🔱 IJzervreter"
-    elif reps < 60: return "💥 Calisthenics Beest"
-    elif reps < 75: return "👑 Koning van de Bar"
-    elif reps < 90: return "🌋 Onstuitbare Sloopkogel"
-    return "👁️‍🗨️ Mythische God"
+def get_pushup_badge(reps):
+    if reps < 10: return "🥚 Groentje"
+    elif reps < 25: return "⚔️ Slagvelder"
+    elif reps < 45: return "🛡️ IJzeren Garde"
+    elif reps < 65: return "⚡ Tempobeest"
+    elif reps < 85: return "🌋 Sloopkogel"
+    elif reps < 100: return "🦅 Mythische Krijger"
+    return "👑 Goddelijke Titan"
 
-def bepaal_pullup_rang(reps):
-    if reps < 5: return "🥚 Groentje"
-    elif reps < 10: return "⚔️ Straatstrijder"
-    elif reps < 15: return "🔱 IJzervreter"
-    elif reps < 20: return "💥 Calisthenics Beest"
-    elif reps < 25: return "👑 Koning van de Bar"
-    elif reps < 30: return "🌋 Onstuitbare Sloopkogel"
-    return "👁️‍🗨️ Mythische God"
+def get_pullup_badge(reps):
+    if reps < 3: return "🍃 Vedergewicht"
+    elif reps < 8: return "🐒 Boomklimmer"
+    elif reps < 14: return "⛓️ Kettingbreker"
+    elif reps < 20: return "🚀 Zwaartekracht Trotseerder"
+    elif reps < 26: return "🦅 Hemelbestormer"
+    return "🔱 Zwevende Legende"
 
-def bepaal_pistol_rang(reps):
-    if reps < 4: return "🥚 Groentje"
-    elif reps < 8: return "⚔️ Straatstrijder"
-    elif reps < 12: return "🔱 IJzervreter"
-    elif reps < 16: return "💥 Calisthenics Beest"
-    elif reps < 20: return "👑 Koning van de Bar"
-    elif reps < 25: return "🌋 Onstuitbare Sloopkogel"
-    return "👁️‍🗨️ Mythische God"
+def get_pistol_badge(reps):
+    if reps < 2: return "🌱 Wankele Sprout"
+    elif reps < 6: return "🏹 Boogschutter"
+    elif reps < 12: return "🐎 Steigerend Paard"
+    elif reps < 18: return "🗿 Lopend Standbeeld"
+    elif reps < 24: return "🌪️ Betonbreker"
+    return "🦾 Hydraulische Meester"
 
-def bepaal_plank_rang(secs):
-    if secs < 45: return "🥚 Groentje"
-    elif secs < 90: return "⚔️ Straatstrijder"
-    elif secs < 135: return "🔱 IJzervreter"
-    elif secs < 180: return "💥 Calisthenics Beest"
-    elif secs < 225: return "👑 Koning van de Bar"
-    elif secs < 270: return "🌋 Onstuitbare Sloopkogel"
-    return "👁️‍🗨️ Mythische God"
+def get_plank_badge(seconds):
+    if seconds < 45: return "⌛ Zandloper"
+    elif seconds < 90: return "🧱 Baksteen"
+    elif seconds < 150: return "⛰️ Rotswand"
+    elif seconds < 210: return "💎 Diamanten Schild"
+    elif seconds < 300: return "🪐 Tijdloze Wachter"
+    return "🌌 Onsterfelijke Kosmos"
 
 def voorspel_spieren(oefening_naam):
     naam = oefening_naam.lower()
@@ -296,13 +292,15 @@ with tab1:
 
     st.markdown(f"""<div class="fat-box"><h4 style="margin:0; color:#00FFFF;">🧬 Vetpercentage: {vetpercentage:.1f}%</h4></div>""", unsafe_allow_html=True)
 
-    st.markdown("### 🏅 Actuele PR Rangen")
-    st.markdown(f"""<div class="badge-grid">
-        <div class="badge-box"><b>Pushups</b><br><small>{bepaal_pushup_rang(st.session_state.pushup_record)}</small><br><b>{st.session_state.pushup_record}</b> reps</div>
-        <div class="badge-box"><b>Pullups</b><br><small>{bepaal_pullup_rang(st.session_state.pullup_record)}</small><br><b>{st.session_state.pullup_record}</b> reps</div>
-        <div class="badge-box"><b>Pistols</b><br><small>{bepaal_pistol_rang(st.session_state.pistol_record)}</small><br><b>{st.session_state.pistol_record}</b> reps</div>
-        <div class="badge-box"><b>Plank</b><br><small>{bepaal_plank_rang(st.session_state.plank_record)}</small><br><b>{st.session_state.plank_record}s</b></div>
-    </div>""", unsafe_allow_html=True)
+    st.markdown("### 🏅 Jouw Mijlpalen & Rangen")
+    st.markdown(f"""
+    <div class="badge-grid">
+        <div class="badge-box"><b>Pushups</b><br><small>{get_pushup_badge(st.session_state.pushup_record)} ({st.session_state.pushup_record})</small></div>
+        <div class="badge-box"><b>Pullups</b><br><small>{get_pullup_badge(st.session_state.pullup_record)} ({st.session_state.pullup_record})</small></div>
+        <div class="badge-box"><b>Pistol Squats</b><br><small>{get_pistol_badge(st.session_state.pistol_record)} ({st.session_state.pistol_record})</small></div>
+        <div class="badge-box"><b>Plank Stand</b><br><small>{get_plank_badge(st.session_state.plank_record)} ({st.session_state.plank_record}s)</small></div>
+    </div>
+    """, unsafe_allow_html=True)
 
 # --- TAB 2: AI SCANNER ---
 with tab2:
@@ -363,10 +361,6 @@ with tab5:
                 st.session_state.kaaklijn_streak += 1
                 st.session_state.last_streak_date = vandaag_str
             save_to_browser(); st.rerun()
-        elif not vinkje and is_checked:
-            st.session_state.kaaklijn_vinkjes[titel] = False
-            st.session_state.oefening_log = [l for l in st.session_state.oefening_log if l["Oefening"] != titel]
-            save_to_browser(); st.rerun()
 
     st.markdown("---")
     st.markdown("### 🏋️‍♂️ Krachtoefening Registreren")
@@ -382,4 +376,20 @@ with tab5:
     if st.button("💪 Log Krachtoefening"):
         if oefening_naam:
             spier_res = voorspel_spieren(oefening_naam) if keuze == "Zelf opschrijven..." else OEFENINGEN_INFO[keuze]
-            st.session_state.oefening_log.insert(0, {"Tijd": datetime.datetime.now().strftime("%H:%M"), "Oefening
+            st.session_state.oefening_log.insert(0, {"Tijd": datetime.datetime.now().strftime("%H:%M"), "Oefening": oefening_naam, "Volume": f"{sets}x{reps}", "Getrainde Spieren": spier_res})
+            st.success(f"Geregistreerd! Spieren: {spier_res}")
+            save_to_browser(); time.sleep(1); st.rerun()
+
+    if st.session_state.oefening_log:
+        st.dataframe(pd.DataFrame(st.session_state.oefening_log), use_container_width=True, hide_index=True)
+
+# --- TAB 6: ACCOUNT ---
+with tab6:
+    st.title("⚙️ Personaliseer Je Profiel")
+    with st.form("account_form"):
+        new_name = st.text_input("Voornaam", value=user["name"])
+        try:
+            current_bdate = datetime.datetime.strptime(user["birth_date"], "%Y-%m-%d").date()
+        except:
+            current_bdate = datetime.date(2006, 1, 1)
+        new_birth = st.date_input("Geboortedatum
