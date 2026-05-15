@@ -42,42 +42,39 @@ def bereken_leeftijd(geboortedatum_str):
     except:
         return 20
 
-# --- SPECIALE BIJZONDERE NEDERLANDSE BADGES (6 tot 7 NIVEAUS) ---
-def krijg_pushup_badge(score):
-    if score >= 100: return "👑 Goddelijke Gestalte"
-    elif score >= 75: return "⚡ Tempelbewaker"
-    elif score >= 50: return "⚔️ IJzeren Krijger"
-    elif score >= 35: return "🛡️ Schildknaap"
-    elif score >= 20: return "🏹 Jager"
-    elif score >= 10: return "🪵 Houthakker"
-    return "🌱 Pas Ontkiemd"
+# Unieke mythologische / epische titels (6 tot 7 niveaus per discipline)
+def pak_pushup_badge(reps):
+    if reps < 15: return "🥉 Straatvechter"
+    if reps < 30: return "🥈 Ijzeren Schildwacht"
+    if reps < 45: return "🥇 Spartaanse Krijger"
+    if reps < 60: return "🔥 Paladijn van de Tempel"
+    if reps < 80: return "👑 Halfgod van het Slagveld"
+    if reps < 100: return "⚡ Onsterfelijke Titaan"
+    return "🌌 Kosmische Heerser (100+)"
 
-def krijg_pullup_badge(score):
-    if score >= 25: return "🦅 Hemelbestormer"
-    elif score >= 18: return "🐒 Boomkroon Heerser"
-    elif score >= 12: return "🐾 Panter"
-    elif score >= 8: return "🧗 Klimmer"
-    elif score >= 5: return "🌲 Boswachter"
-    elif score >= 2: return "🦎 Sluiper"
-    return "🍂 Herfstblad"
+def pak_pullup_badge(reps):
+    if reps < 5: return "🥉 Grondzoeker"
+    if reps < 10: return "🥈 Zwaartekracht Trotseerder"
+    if reps < 15: return "🥇 Hemelbestormer"
+    if reps < 20: return "🔥 Schaduw Ninja"
+    if reps < 25: return "👑 Feniks van de Vrijheid"
+    return "⚡ God van de Gym (25+)"
 
-def krijg_pistol_badge(score):
-    if score >= 20: return "⛰️ Bergreus"
-    elif score >= 15: return "🐎 Centaur"
-    elif score >= 10: return "🐆 Gazelle"
-    elif score >= 6: return "🦘 Kangoeroe"
-    elif score >= 3: return "🐇 Haas"
-    elif score >= 1: return "🐾 Welp"
-    return "🥚 Standbeeld"
+def pak_pistol_badge(reps):
+    if reps < 3: return "🥉 Wankele Beginnener"
+    if reps < 6: return "🥈 Balans Meester"
+    if reps < 10: return "🥇 Marmeren Pilaar"
+    if reps < 15: return "🔥 Nitro Katapult"
+    if reps < 20: return "👑 Achilles' Uitvinder"
+    return "⚡ Onverwoestbare Sokkel (20+)"
 
-def krijg_plank_badge(score):
-    if score >= 240: return "🏔️ Onwrikbare Rots"
-    elif score >= 180: return "🧱 Vestingmuur"
-    elif score >= 120: return "🪵 Eiken Balk"
-    elif score >= 90: return "🛡️ Borstpantser"
-    elif score >= 60: return "🌾 Bamboe"
-    elif score >= 30: return "🧘 Beginnend Yogi"
-    return "🍮 Pudding"
+def pak_plank_badge(seconds):
+    if seconds < 45: return "🥉 Smeltend Kaarsvet"
+    if seconds < 90: return "🥈 Gewapend Beton"
+    if seconds < 150: return "🥇 Granieten Monoliet"
+    if seconds < 240: return "🔥 Tijdloze Wachter"
+    if seconds < 360: return "👑 Sfinx van de Eeuwigheid"
+    return "⚡ Onbeweeglijke Berg (360s+)"
 
 def voorspel_spieren(oefening_naam):
     naam = oefening_naam.lower()
@@ -173,7 +170,7 @@ def save_to_browser():
     json_str = json.dumps(payload).replace("'", "\\'")
     html(f"<script>localStorage.setItem('nutrisnap_core_data', '{json_str}');</script>", height=0)
 
-# --- 3. BROWSER DATA SYNC & RESET ---
+# --- 3. BROWSER DATA SYNC ---
 query_params = st.query_params
 if "browser_data" in query_params and not st.session_state.get("synced", False):
     try:
@@ -198,10 +195,6 @@ if "browser_data" in query_params and not st.session_state.get("synced", False):
         st.session_state.synced = True
         
         if st.session_state.last_log_date != vandaag_str:
-            if st.session_state.last_streak_date:
-                laatste_streak_dag = datetime.datetime.strptime(st.session_state.last_streak_date, "%Y-%m-%d").date()
-                if (datetime.date.today() - laatste_streak_dag).days > 1:
-                    st.session_state.kaaklijn_streak = 0
             st.session_state.water_ml, st.session_state.kcal_gegeten, st.session_state.eiwit_gegeten = 0, 0, 0
             st.session_state.oefening_log = []
             st.session_state.kaaklijn_vinkjes = {}
@@ -256,7 +249,7 @@ if not st.session_state.logged_in:
                 save_to_browser(); st.rerun()
     st.stop()
 
-# --- 5. BEREKENINGEN SCHERM ---
+# --- 5. BEREKENINGEN ---
 user = st.session_state.user_db.get(st.session_state.current_user, {"name": "Gebruiker", "age": 20, "birth_date": "2006-01-01", "height": 180, "weight": 80, "target_weight": 75, "days_train": 3, "duration_train": 60, "neck": 38, "waist": 85})
 user["age"] = bereken_leeftijd(user["birth_date"])
 
@@ -300,20 +293,20 @@ with tab1:
 
     st.markdown(f"""<div class="fat-box"><h4 style="margin:0; color:#00FFFF;">🧬 Vetpercentage: {vetpercentage:.1f}%</h4></div>""", unsafe_allow_html=True)
 
-    st.markdown("### 🏅 Jouw Rangonderscheidingen")
+    st.markdown("### 🏅 Actuele PR Rangen")
     st.markdown(f"""
     <div class="badge-grid">
-        <div class="badge-box"><b>Opdrukken</b><br><small>{krijg_pushup_badge(st.session_state.pushup_record)} ({st.session_state.pushup_record} herh.)</small></div>
-        <div class="badge-box"><b>Optrekken</b><br><small>{krijg_pullup_badge(st.session_state.pullup_record)} ({st.session_state.pullup_record} herh.)</small></div>
-        <div class="badge-box"><b>Pistol Squats</b><br><small>{krijg_pistol_badge(st.session_state.pistol_record)} ({st.session_state.pistol_record} herh.)</small></div>
-        <div class="badge-box"><b>Planken</b><br><small>{krijg_plank_badge(st.session_state.plank_record)} ({st.session_state.plank_record} sec)</small></div>
+        <div class="badge-box"><b>Pushups</b><br><small>{pak_pushup_badge(st.session_state.pushup_record)} ({st.session_state.pushup_record} reps)</small></div>
+        <div class="badge-box"><b>Pullups</b><br><small>{pak_pullup_badge(st.session_state.pullup_record)} ({st.session_state.pullup_record} reps)</small></div>
+        <div class="badge-box"><b>Pistols</b><br><small>{pak_pistol_badge(st.session_state.pistol_record)} ({st.session_state.pistol_record} reps)</small></div>
+        <div class="badge-box"><b>Plank</b><br><small>{pak_plank_badge(st.session_state.plank_record)} ({st.session_state.plank_record}s)</small></div>
     </div>
     """, unsafe_allow_html=True)
 
 # --- TAB 2: AI SCANNER ---
 with tab2:
-    st.title("📸 AI Maaltijd Scanner")
-    if st.camera_input("Maak foto van maaltijd"):
+    st.title("📸 AI Scanner")
+    if st.camera_input("Scan maaltijd"):
         if st.button("Analyseer bord"):
             st.session_state.kcal_gegeten += 450; st.session_state.eiwit_gegeten += 32; save_to_browser(); st.rerun()
 
@@ -347,14 +340,14 @@ with tab3:
 
 # --- TAB 4: VOEDING ---
 with tab4:
-    st.title("💧 Hydratatie & Eiwitten")
+    st.title("💧 Water & Voeding")
     st.metric("Water Inname", f"{st.session_state.water_ml / 1000:.1f} / {doel_water_liters} L")
     st.metric("Eiwit Inname", f"{st.session_state.eiwit_gegeten} / {doel_eiwit} g")
     if st.button("➕ 250ml Water"): st.session_state.water_ml += 250; save_to_browser(); st.rerun()
 
 # --- TAB 5: OEFENINGEN ---
 with tab5:
-    st.title("🗿 Routines & Logs")
+    st.title("🗿 Routines")
     streak_dagen = st.session_state.kaaklijn_streak
     st.markdown(f"""<div class="streak-box"><h2 style="margin:0; color:#FF1493;">🔥 Kaaklijn Streak: {streak_dagen} Dagen</h2></div>""", unsafe_allow_html=True)
     
@@ -369,6 +362,10 @@ with tab5:
                 st.session_state.kaaklijn_streak += 1
                 st.session_state.last_streak_date = vandaag_str
             save_to_browser(); st.rerun()
+        elif not vinkje and is_checked:
+            st.session_state.kaaklijn_vinkjes[titel] = False
+            st.session_state.oefening_log = [l for l in st.session_state.oefening_log if l["Oefening"] != titel]
+            save_to_browser(); st.rerun()
 
     st.markdown("---")
     st.markdown("### 🏋️‍♂️ Krachtoefening Registreren")
@@ -378,15 +375,15 @@ with tab5:
     else:
         oefening_naam = keuze
         
-    sets_in = st.number_input("Sets", min_value=1, value=3)
-    reps_in = st.number_input("Reps / Seconden", min_value=1, value=10)
+    sets = st.number_input("Sets", min_value=1, value=3)
+    reps = st.number_input("Reps / Seconden", min_value=1, value=10)
         
     if st.button("💪 Log Krachtoefening"):
         if oefening_naam:
             spier_res = voorspel_spieren(oefening_naam) if keuze == "Zelf opschrijven..." else OEFENINGEN_INFO[keuze]
-            st.session_state.oefening_log.insert(0, {"Tijd": datetime.datetime.now().strftime("%H:%M"), "Oefening": oefening_naam, "Volume": f"{sets_in}x{reps_in}", "Getrainde Spieren": spier_res})
+            st.session_state.oefening_log.insert(0, {"Tijd": datetime.datetime.now().strftime("%H:%M"), "Oefening": oefening_naam, "Volume": f"{sets}x{reps}", "Getrainde Spieren": spier_res})
             st.success(f"Geregistreerd! Spieren: {spier_res}")
             save_to_browser(); time.sleep(1); st.rerun()
 
     if st.session_state.oefening_log:
-        
+        st.dataframe(pd.DataFrame(st.session_state.
