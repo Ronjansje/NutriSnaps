@@ -42,40 +42,6 @@ def bereken_leeftijd(geboortedatum_str):
     except:
         return 20
 
-# Unieke mythologische / epische titels (6 tot 7 niveaus per discipline)
-def pak_pushup_badge(reps):
-    if reps < 15: return "🥉 Straatvechter"
-    if reps < 30: return "🥈 Ijzeren Schildwacht"
-    if reps < 45: return "🥇 Spartaanse Krijger"
-    if reps < 60: return "🔥 Paladijn van de Tempel"
-    if reps < 80: return "👑 Halfgod van het Slagveld"
-    if reps < 100: return "⚡ Onsterfelijke Titaan"
-    return "🌌 Kosmische Heerser (100+)"
-
-def pak_pullup_badge(reps):
-    if reps < 5: return "🥉 Grondzoeker"
-    if reps < 10: return "🥈 Zwaartekracht Trotseerder"
-    if reps < 15: return "🥇 Hemelbestormer"
-    if reps < 20: return "🔥 Schaduw Ninja"
-    if reps < 25: return "👑 Feniks van de Vrijheid"
-    return "⚡ God van de Gym (25+)"
-
-def pak_pistol_badge(reps):
-    if reps < 3: return "🥉 Wankele Beginnener"
-    if reps < 6: return "🥈 Balans Meester"
-    if reps < 10: return "🥇 Marmeren Pilaar"
-    if reps < 15: return "🔥 Nitro Katapult"
-    if reps < 20: return "👑 Achilles' Uitvinder"
-    return "⚡ Onverwoestbare Sokkel (20+)"
-
-def pak_plank_badge(seconds):
-    if seconds < 45: return "🥉 Smeltend Kaarsvet"
-    if seconds < 90: return "🥈 Gewapend Beton"
-    if seconds < 150: return "🥇 Granieten Monoliet"
-    if seconds < 240: return "🔥 Tijdloze Wachter"
-    if seconds < 360: return "👑 Sfinx van de Eeuwigheid"
-    return "⚡ Onbeweeglijke Berg (360s+)"
-
 def voorspel_spieren(oefening_naam):
     naam = oefening_naam.lower()
     gevonden_spieren = []
@@ -91,6 +57,42 @@ def voorspel_spieren(oefening_naam):
     if "deadlift" in naam: gevonden_spieren.extend(["Onderrug", "Hamstrings", "Billen", "Gripkracht"])
     if not gevonden_spieren: return "Algemene spiergroepen"
     return ", ".join(list(set(gevonden_spieren)))
+
+def bereken_badge_pushups(reps):
+    if reps >= 100: return "👑 Goddelijke Atleet"
+    elif reps >= 75: return "🔥 Titanium Sloper"
+    elif reps >= 50: return "⚔️ Meester-Indrukker"
+    elif reps >= 35: return "🛡️ IJzeren Strijder"
+    elif reps >= 20: return "🎯 Gedreven Rekruut"
+    elif reps >= 10: return "🌱 Groeiende Starter"
+    return "🥚 Ongetraind Ei"
+
+def bereken_badge_pullups(reps):
+    if reps >= 30: return "👑 Koning der Boomtoppen"
+    elif reps >= 22: return "🔥 Zwaartekracht Trotseerder"
+    elif reps >= 15: return "⚔️ Klauw van Staal"
+    elif reps >= 10: return "🛡️ Lucht-Strijder"
+    elif reps >= 6: return "🎯 Klimmende Rekruut"
+    elif reps >= 3: return "🌱 Ambitieuze Hanger"
+    return "🥚 Grond-Blijver"
+
+def bereken_badge_pistols(reps):
+    if reps >= 25: return "👑 Sloopkogel op Eén Been"
+    elif reps >= 18: return "🔥 Schokdemper van Staal"
+    elif reps >= 12: return "⚔️ Balans-Meester"
+    elif reps >= 8: return "🛡️ Titanium Knie"
+    elif reps >= 5: return "🎯 Standvastige Squatter"
+    elif reps >= 2: return "🌱 Wankelende Starter"
+    return "🥚 Zittende Toeschouwer"
+
+def bereken_badge_plank(secs):
+    if secs >= 300: return "👑 Onwrikbare Sfinx"
+    elif secs >= 240: return "🔥 Betonnen Fundering"
+    elif secs >= 180: return "⚔️ Kern van Graniet"
+    elif secs >= 120: return "🛡️ IJzeren Schild"
+    elif secs >= 60: return "🎯 Stabiele Rekruut"
+    elif secs >= 30: return "🌱 Trillende Plank"
+    return "🥚 Ingezakt Kaartenhuis"
 
 # --- 2. INITIALISATIE STATE ---
 vandaag_str = datetime.date.today().strftime("%Y-%m-%d")
@@ -170,7 +172,7 @@ def save_to_browser():
     json_str = json.dumps(payload).replace("'", "\\'")
     html(f"<script>localStorage.setItem('nutrisnap_core_data', '{json_str}');</script>", height=0)
 
-# --- 3. BROWSER DATA SYNC ---
+# --- 3. BROWSER DATA SYNC & RESET CHECK ---
 query_params = st.query_params
 if "browser_data" in query_params and not st.session_state.get("synced", False):
     try:
@@ -195,6 +197,10 @@ if "browser_data" in query_params and not st.session_state.get("synced", False):
         st.session_state.synced = True
         
         if st.session_state.last_log_date != vandaag_str:
+            if st.session_state.last_streak_date:
+                lst_d = datetime.datetime.strptime(st.session_state.last_streak_date, "%Y-%m-%d").date()
+                if (datetime.date.today() - lst_d).days > 1:
+                    st.session_state.kaaklijn_streak = 0
             st.session_state.water_ml, st.session_state.kcal_gegeten, st.session_state.eiwit_gegeten = 0, 0, 0
             st.session_state.oefening_log = []
             st.session_state.kaaklijn_vinkjes = {}
@@ -294,14 +300,12 @@ with tab1:
     st.markdown(f"""<div class="fat-box"><h4 style="margin:0; color:#00FFFF;">🧬 Vetpercentage: {vetpercentage:.1f}%</h4></div>""", unsafe_allow_html=True)
 
     st.markdown("### 🏅 Actuele PR Rangen")
-    st.markdown(f"""
-    <div class="badge-grid">
-        <div class="badge-box"><b>Pushups</b><br><small>{pak_pushup_badge(st.session_state.pushup_record)} ({st.session_state.pushup_record} reps)</small></div>
-        <div class="badge-box"><b>Pullups</b><br><small>{pak_pullup_badge(st.session_state.pullup_record)} ({st.session_state.pullup_record} reps)</small></div>
-        <div class="badge-box"><b>Pistols</b><br><small>{pak_pistol_badge(st.session_state.pistol_record)} ({st.session_state.pistol_record} reps)</small></div>
-        <div class="badge-box"><b>Plank</b><br><small>{pak_plank_badge(st.session_state.plank_record)} ({st.session_state.plank_record}s)</small></div>
-    </div>
-    """, unsafe_allow_html=True)
+    st.markdown(f"""<div class="badge-grid">
+        <div class="badge-box"><b>Pushups</b><br><small>{bereken_badge_pushups(st.session_state.pushup_record)}</small><br><b>{st.session_state.pushup_record}</b> reps</div>
+        <div class="badge-box"><b>Pullups</b><br><small>{bereken_badge_pullups(st.session_state.pullup_record)}</small><br><b>{st.session_state.pullup_record}</b> reps</div>
+        <div class="badge-box"><b>Pistols</b><br><small>{bereken_badge_pistols(st.session_state.pistol_record)}</small><br><b>{st.session_state.pistol_record}</b> reps</div>
+        <div class="badge-box"><b>Plank</b><br><small>{bereken_badge_plank(st.session_state.plank_record)}</small><br><b>{st.session_state.plank_record}s</b></div>
+    </div>""", unsafe_allow_html=True)
 
 # --- TAB 2: AI SCANNER ---
 with tab2:
@@ -362,10 +366,6 @@ with tab5:
                 st.session_state.kaaklijn_streak += 1
                 st.session_state.last_streak_date = vandaag_str
             save_to_browser(); st.rerun()
-        elif not vinkje and is_checked:
-            st.session_state.kaaklijn_vinkjes[titel] = False
-            st.session_state.oefening_log = [l for l in st.session_state.oefening_log if l["Oefening"] != titel]
-            save_to_browser(); st.rerun()
 
     st.markdown("---")
     st.markdown("### 🏋️‍♂️ Krachtoefening Registreren")
@@ -386,4 +386,4 @@ with tab5:
             save_to_browser(); time.sleep(1); st.rerun()
 
     if st.session_state.oefening_log:
-        st.dataframe(pd.DataFrame(st.session_state.)
+        st.dataframe(pd.DataFrame(st
