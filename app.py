@@ -386,4 +386,4 @@ with tab5:
             save_to_browser(); time.sleep(1); st.rerun()
 
     if st.session_state.oefening_log:
-        st.dataframe(pd.DataFrame(st.session_state.
+        st.dataframe(pd.DataFrame(st.session_state.)
